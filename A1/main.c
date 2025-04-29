@@ -4,9 +4,7 @@
 #include <string.h>
 #include <strings.h>
 
-void memberInsert(const char *member_name, const char *archive_name){
-    return;
-}
+#include "vinac.h"
 
 int main(int argc, char *argv[]){
     char option;
