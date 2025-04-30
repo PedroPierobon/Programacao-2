@@ -3,8 +3,15 @@
 #include <stddef.h>
 #include "vinac.h"
 
-void appendMember(FILE* member, FILE* archive){
+
+struct infoMember* createSMember(char* name, int uid,  )
+
+/*void directoryRead(FILE* archive){
     
+}
+
+void appendMember(FILE* member, FILE* archive){
+    if 
 }
 
 void memberInsert(const char *member_name, const char *archive_name){
@@ -16,6 +23,9 @@ void memberInsert(const char *member_name, const char *archive_name){
             return;
         }
     }
+    else{
+        directoryRead(archive);
+    }
     FILE* member = fopen(member_name, "r");
     if(!member){
         fprintf(stderr, "Erro ao abrir o arquivo membro: %s\n", member_name);
@@ -26,4 +36,4 @@ void memberInsert(const char *member_name, const char *archive_name){
 
     fclose(member);
     fclose(archive);
-}
+}*/
