@@ -30,6 +30,66 @@ struct directory* cria_diretorio() {
     return dir;
 }
 
+
+void shift_right_archive(FILE* archive, long source, long dest, long size){
+    if(size == 0 || dest <= source) return;
+    
+    char buffer[MAX_BUFFER_SIZE];
+    size_t bytes = size;
+
+    while(bytes > 0){
+        // move com blocos de tamanho block
+        // se o tamanho for menor que o buffer só preenche
+        // esse tamanho faltante
+        size_t chunk = (bytes >= MAX_BUFFER_SIZE) ? MAX_BUFFER_SIZE : bytes;
+        
+        long read_pos = source + bytes - chunk;
+        long write_pos = dest + bytes - chunk;
+        
+        fseek(archive, read_pos, SEEK_SET);
+        if (fread(buffer, 1, chunk, archive) != chunk) {
+            perror("Erro ao ler dados no shift");
+            return;
+        }
+        
+        fseek(archive, write_pos, SEEK_SET);
+        if (fwrite(buffer, 1, chunk, archive) != chunk) {
+            perror("Erro ao escrever dados no shift");
+            return;
+        }
+
+        bytes -= chunk;
+    }
+}
+
+void shift_left_archive(FILE* archive, long source, long dest, long size){
+    if (size == 0 || dest >= source) return;
+
+    char buffer[MAX_BUFFER_SIZE];
+    size_t bytes = 0;
+
+    while (bytes < size) {
+        size_t chunk = (size - bytes >= MAX_BUFFER_SIZE) ? MAX_BUFFER_SIZE : (size - bytes);
+
+        long read_pos = source + bytes;
+        long write_pos = dest + bytes;
+
+        fseek(archive, read_pos, SEEK_SET);
+        if (fread(buffer, 1, chunk, archive) != chunk) {
+            perror("Erro ao ler dados no shift left");
+            return;
+        }
+
+        fseek(archive, write_pos, SEEK_SET);
+        if (fwrite(buffer, 1, chunk, archive) != chunk) {
+            perror("Erro ao escrever dados no shift left");
+            return;
+        }
+
+        bytes += chunk;
+    }
+}
+
 void memberInsert(const char *member_name, const char *archive_name){
     // Abre archive
     FILE* archive = fopen(archive_name, "r+");
