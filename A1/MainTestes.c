@@ -109,46 +109,6 @@ void escreve_diretorio(FILE* archive, struct directory* dir) {
     fwrite(dir->members, sizeof(struct infoMember), dir->N, archive);
 }
 
-void memberInsert(FILE* archive, int argc, char* argv[]){
-    //argv[0] = ./vinac
-    //argv[1] = -i
-    //argv[2] = meu.vc
-    int qtd_membros = argc - 3;
-    struct directory* dir = cria_diretorio(qtd_membros);
-    for (int i = 3; i < argc; i++){
-        atualiza_diretorio(dir, argv[])
-    }
-    escreve_membro(archive, member_name);
-    
-    
-    // Atualizar diretório
-    // Criar Diretório
-    struct directory* dir = cria_diretorio();
-    if(!dir){
-        perror("Erro ao alocar o diretório");
-        fclose(archive);
-        return;
-    }
-    
-    // Atualizar Diretório
-    dir->N = 1;
-    dir->members = malloc(dir->N * sizeof(struct infoMember));
-    
-    /////////////////////////////////
-    // COLOCAR INFOMAÇÕES DOS MEMBROS
-    /////////////////////////////////
- // Mover Membro para abrir espaço
-    long deslocamento = sizeof(struct directory) + dir->N * sizeof(struct infoMember);
-    struct stat statbuf;
-    stat(member_name, &statbuf);
-    shift_right_archive(archive, 0, deslocamento, statbuf.st_size);
-    
-    escreve_diretorio(archive, dir)
-    free(dir->members);
-    free(dir);
-    fclose(archive);
-}
-
 struct directory* ler_diretorio(FILE* archive){
     rewind(archive);
     struct directory* dir = cria_diretorio(0);
@@ -156,13 +116,13 @@ struct directory* ler_diretorio(FILE* archive){
         perror("Erro ao alocar diretório");
         return NULL;
     }
-
+    
     if (fread(dir, 1, sizeof(struct directory), archive) != sizeof(struct directory)) {
         perror("Erro ao ler o diretório");
         free(dir);
         return NULL;
     }
-
+    
     dir->members = calloc(dir->N, sizeof(struct infoMember));
     if (dir->N != 0 && !dir->members) {
         perror("Erro ao alocar vetor de membros");
@@ -176,12 +136,58 @@ struct directory* ler_diretorio(FILE* archive){
         free(dir);
         return NULL;
     }
-
+    
     return dir;
+}
+
+// NÃO COLOCA O OFFSET
+void append_diretorio(struct directory* dir, const char* member_name, int old_N){
+    struct stat statbuf;
+    stat(member_name, &statbuf);
+    dir->members[old_N].name = member_name;
+    dir->members[old_N].originalSize = statbuf.st_size;
+    dir->members[old_N].diskSize = statbuf.st_size;
+    dir->members[old_N].modTime = statbuf.st_mtime;
+    dir->members[old_N].pos = old_N;
+}
+
+void memberInsert(FILE* archive, int argc, char* argv[], struct directory* dir){
+    int qtd_membros = argc - 3;
+    int old_N = dir->N;
+    int new_N = dir->N + qtd_membros;
+    
+    if(!(dir->members = realloc(dir->members, new_N * sizeof(struct infoMember)))){
+        perror("Erro ao realocar vetor de infoMember");
+        return;
+    }
+    
+    for (int i = 3; i < argc; i++){
+        append_diretorio(dir, argv[i], dir->N);
+        dir->N++;
+    }
+
+    if(old_N != 0){
+        long deslocamento = qtd_membros * sizeof(struct infoMember);
+        size_t big_chunk = 0;
+        for(int i = 0; i < old_N; i++){
+            big_chunk += dir->members[i].diskSize;
+        }
+        shift_right_archive(archive, dir->members[0].offset, dir->members[0].offset + deslocamento, big_chunk);
+    }
+
+
+    free(dir->members);
+    free(dir);
+    fclose(archive);
 }
 
 int main(int argc, char *argv[]){
     const char* archive_name = argv[2];
+    struct directory* dir;
+    //argv[0] = ./vinac
+    //argv[1] = -i
+    //argv[2] = meu.vc
+    int qtd_membros = argc - 3;
     // Abre archive
     FILE* archive = fopen(archive_name, "r+");
     if(!archive){
@@ -191,9 +197,10 @@ int main(int argc, char *argv[]){
             fprintf(stderr, "Erro ao criar o arquivo archive: %s\n", archive_name);
             return;
         }
+        dir = cria_diretorio(qtd_membros);
     }else{
-        struct directory* dir = ler_diretorio(archive);
+        dir = ler_diretorio(archive);
     }
-    memberInsert(archive, argc, argv);
+    memberInsert(archive, argc, argv, dir);
     
 }
