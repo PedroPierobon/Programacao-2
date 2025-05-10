@@ -105,7 +105,7 @@ void shift_left_archive(FILE* archive, long source, long dest,  size_t size){
 
 void escreve_diretorio(FILE* archive, struct directory* dir) {
     rewind(archive);
-    fwrite(dir, sizeof(struct directory), 1, archive); 
+    fwrite(&dir->N, sizeof(int), 1, archive); 
     fwrite(dir->members, sizeof(struct infoMember), dir->N, archive);
 }
 
@@ -117,7 +117,7 @@ struct directory* ler_diretorio(FILE* archive){
         return NULL;
     }
     
-    if (fread(dir, 1, sizeof(struct directory), archive) != sizeof(struct directory)) {
+    if (fread(&dir->N, sizeof(int), 1, archive) != 1) {
         perror("Erro ao ler o diretório");
         free(dir);
         return NULL;
@@ -140,11 +140,19 @@ struct directory* ler_diretorio(FILE* archive){
     return dir;
 }
 
-// NÃO COLOCA O OFFSET
+void atualiza_offset(FILE* archive, struct directory* dir){
+    long new_offset = sizeof(int) + dir->N * sizeof(struct infoMember);
+    for(int i = 0; i < dir->N; i++){
+        dir->members[i].offset = new_offset;
+        new_offset += dir->members[i].diskSize;
+    }
+}
+
 void append_diretorio(struct directory* dir, const char* member_name, int old_N){
     struct stat statbuf;
     stat(member_name, &statbuf);
-    dir->members[old_N].name = member_name;
+    strncpy(dir->members[old_N].name, member_name, MAX_NAME_SIZE);
+    //dir->members[old_N].name = member_name;
     dir->members[old_N].originalSize = statbuf.st_size;
     dir->members[old_N].diskSize = statbuf.st_size;
     dir->members[old_N].modTime = statbuf.st_mtime;
@@ -156,16 +164,19 @@ void memberInsert(FILE* archive, int argc, char* argv[], struct directory* dir){
     int old_N = dir->N;
     int new_N = dir->N + qtd_membros;
     
+    // Realloc para caber os novos membros
     if(!(dir->members = realloc(dir->members, new_N * sizeof(struct infoMember)))){
         perror("Erro ao realocar vetor de infoMember");
         return;
     }
     
+    // Adiciona as informações dos novos membros no vetor
     for (int i = 3; i < argc; i++){
         append_diretorio(dir, argv[i], dir->N);
         dir->N++;
     }
 
+    // Faz o deslocamento se não era vazio o arquivo
     if(old_N != 0){
         long deslocamento = qtd_membros * sizeof(struct infoMember);
         size_t big_chunk = 0;
@@ -175,6 +186,17 @@ void memberInsert(FILE* archive, int argc, char* argv[], struct directory* dir){
         shift_right_archive(archive, dir->members[0].offset, dir->members[0].offset + deslocamento, big_chunk);
     }
 
+    // Agora com o devido espaçamento escreve novos membros no final
+    fseek(archive, 0, SEEK_END);
+    for (int i = 3; i < argc; i++){
+        escreve_membro(archive, argv[i]);
+    }
+    
+    // Membros devidamente posicionados, atualiza offset
+    atualiza_offset(archive, dir);
+    
+    // Por fim escreve diretório
+    escreve_diretorio(archive, dir);
 
     free(dir->members);
     free(dir);
@@ -201,6 +223,7 @@ int main(int argc, char *argv[]){
     }else{
         dir = ler_diretorio(archive);
     }
-    memberInsert(archive, argc, argv, dir);
+    memberInsert(archive, argc, argv, dir);  
     
+    return 0;
 }
