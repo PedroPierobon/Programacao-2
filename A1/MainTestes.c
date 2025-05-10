@@ -3,6 +3,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "vinac.h"
 
@@ -23,15 +26,25 @@ void escreve_membro(FILE* archive, const char *member_name){
     fclose(member);
 }
 
-struct directory* cria_diretorio() {
+// Cria diretório e aloca N InfoMembers
+struct directory* cria_diretorio(int N) {
     struct directory* dir = malloc(sizeof(struct directory));
-    dir->N = 0;
-    dir->members = NULL;
+    if(!dir){
+        perror("Erro ao alocar diretório");
+        return NULL;
+    }
+    
+    dir->N = N;
+    dir->members = calloc(N, sizeof(struct infoMember));
+    if(N != 0 && !dir->members){
+        perror("Erro ao alocar vetor de informações");
+        return NULL;
+    }
     return dir;
 }
 
 
-void shift_right_archive(FILE* archive, long source, long dest, long size){
+void shift_right_archive(FILE* archive, long source, long dest, size_t size){
     if(size == 0 || dest <= source) return;
     
     char buffer[MAX_BUFFER_SIZE];
@@ -62,7 +75,7 @@ void shift_right_archive(FILE* archive, long source, long dest, long size){
     }
 }
 
-void shift_left_archive(FILE* archive, long source, long dest, long size){
+void shift_left_archive(FILE* archive, long source, long dest,  size_t size){
     if (size == 0 || dest >= source) return;
 
     char buffer[MAX_BUFFER_SIZE];
@@ -90,7 +103,85 @@ void shift_left_archive(FILE* archive, long source, long dest, long size){
     }
 }
 
-void memberInsert(const char *member_name, const char *archive_name){
+void escreve_diretorio(FILE* archive, struct directory* dir) {
+    rewind(archive);
+    fwrite(dir, sizeof(struct directory), 1, archive); 
+    fwrite(dir->members, sizeof(struct infoMember), dir->N, archive);
+}
+
+void memberInsert(FILE* archive, int argc, char* argv[]){
+    //argv[0] = ./vinac
+    //argv[1] = -i
+    //argv[2] = meu.vc
+    int qtd_membros = argc - 3;
+    struct directory* dir = cria_diretorio(qtd_membros);
+    for (int i = 3; i < argc; i++){
+        atualiza_diretorio(dir, argv[])
+    }
+    escreve_membro(archive, member_name);
+    
+    
+    // Atualizar diretório
+    // Criar Diretório
+    struct directory* dir = cria_diretorio();
+    if(!dir){
+        perror("Erro ao alocar o diretório");
+        fclose(archive);
+        return;
+    }
+    
+    // Atualizar Diretório
+    dir->N = 1;
+    dir->members = malloc(dir->N * sizeof(struct infoMember));
+    
+    /////////////////////////////////
+    // COLOCAR INFOMAÇÕES DOS MEMBROS
+    /////////////////////////////////
+ // Mover Membro para abrir espaço
+    long deslocamento = sizeof(struct directory) + dir->N * sizeof(struct infoMember);
+    struct stat statbuf;
+    stat(member_name, &statbuf);
+    shift_right_archive(archive, 0, deslocamento, statbuf.st_size);
+    
+    escreve_diretorio(archive, dir)
+    free(dir->members);
+    free(dir);
+    fclose(archive);
+}
+
+struct directory* ler_diretorio(FILE* archive){
+    rewind(archive);
+    struct directory* dir = cria_diretorio(0);
+    if (!dir) {
+        perror("Erro ao alocar diretório");
+        return NULL;
+    }
+
+    if (fread(dir, 1, sizeof(struct directory), archive) != sizeof(struct directory)) {
+        perror("Erro ao ler o diretório");
+        free(dir);
+        return NULL;
+    }
+
+    dir->members = calloc(dir->N, sizeof(struct infoMember));
+    if (dir->N != 0 && !dir->members) {
+        perror("Erro ao alocar vetor de membros");
+        free(dir);
+        return NULL;
+    }
+    
+    if (fread(dir->members, sizeof(struct infoMember), dir->N, archive) != dir->N) {
+        perror("Erro ao ler membros do diretório");
+        free(dir->members);
+        free(dir);
+        return NULL;
+    }
+
+    return dir;
+}
+
+int main(int argc, char *argv[]){
+    const char* archive_name = argv[2];
     // Abre archive
     FILE* archive = fopen(archive_name, "r+");
     if(!archive){
@@ -100,51 +191,9 @@ void memberInsert(const char *member_name, const char *archive_name){
             fprintf(stderr, "Erro ao criar o arquivo archive: %s\n", archive_name);
             return;
         }
-        
-        escreve_membro(archive, member_name);
-        
-        
-        // Atualizar diretório
-        // Criar Diretório
-        struct directory* dir = cria_diretorio();
-        if(!dir){
-            perror("Erro ao alocar o diretório");
-            fclose(archive);
-            return;
-        }
-        
-        // Atualizar Diretório
-        dir->N = 1;
-        dir->members = malloc(dir->N * sizeof(struct infoMember));
-        
-        /////////////////////////////////
-        // COLOCAR INFOMAÇÕES DOS MEMBROS
-        /////////////////////////////////
-
-        // Mover Membro para abrir espaço
-        long deslocamento = sizeof(struct directory) + dir->N * sizeof(struct infoMember);
-
-        rewind(archive);
-        char* temp = malloc(tam_membro);
-        fread(temp, 1, tam_membro, archive);
-
-        fseek(archive, deslocamento, SEEK_SET); // setando o ponteiro no offset do começo
-        fwrite(temp, 1, tam_membro, archive);
-        free(temp);
-
-
-        rewind(archive);
-        fwrite(dir, sizeof(struct directory), 1, archive); 
-        fwrite(dir->members, sizeof(struct infoMember), dir->N, archive);
-
-        free(dir->members);
-        free(dir);
-        fclose(archive);
+    }else{
+        struct directory* dir = ler_diretorio(archive);
     }
-}
-
-int main(int argc, char *argv[]){
-    const char* archive = argv[2];
-    memberInsert(argv[3], archive);
+    memberInsert(archive, argc, argv);
     
 }
