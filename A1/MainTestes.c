@@ -217,12 +217,131 @@ void memberInsert(FILE* archive, int argc, char* argv[], struct directory* dir){
             escreve_membro(archive, argv[i]);
         }
     }
-
-
-    free(dir->members);
-    free(dir);
-    fclose(archive);
 }
+
+void move_member(FILE* archive, const char* member, const char* target, struct directory* dir, const char* archive_name) {
+    // Procura o id dos membros buscados
+    ssize_t id_m = -1, id_t = -1;
+    for (ssize_t i = 0; (size_t)i < dir->N; i++) {
+        if (strcmp(dir->members[i].name, member) == 0) id_m = i;
+        if (target && strcmp(dir->members[i].name, target) == 0) id_t = i;
+    }
+
+    if (!target) {
+        if (id_m == 0) {
+            fprintf(stderr, "Membro já está na posição inicial. Não houve mudança\n");
+            return;
+        }
+    
+        struct infoMember info_m = dir->members[id_m];
+    
+        // Copia membro para o fim
+        fseek(archive, 0, SEEK_END);
+        long fim_arquivo = ftell(archive);
+        shift_right_archive(archive, info_m.offset, fim_arquivo, info_m.diskSize);
+
+        long inicio_membros = dir->members[0].offset;
+    
+        // Move os outros para a direita
+        size_t big_chunk = 0;
+        long curr_offset = info_m.offset + info_m.diskSize;
+        for (ssize_t i = id_m - 1; i >= 0; i--) {
+            big_chunk += dir->members[i].diskSize;
+            dir->members[i].pos++;
+            dir->members[i + 1] = dir->members[i];
+            curr_offset -= dir->members[i + 1].diskSize;
+            dir->members[i + 1].offset = curr_offset;
+        }
+        shift_right_archive(archive, inicio_membros, inicio_membros + info_m.diskSize, big_chunk);
+    
+        // Coloca info_m na posição 0
+        dir->members[0] = info_m;
+        dir->members[0].pos = 0;
+        dir->members[0].offset = inicio_membros;
+        shift_left_archive(archive, fim_arquivo, inicio_membros, info_m.diskSize);
+    
+        truncate(archive_name, fim_arquivo);
+        escreve_diretorio(archive, dir);
+        return;
+    }
+    
+    if (id_m == -1) {
+        fprintf(stderr, "Membro '%s' não encontrado\n", member);
+        return;
+    }
+
+    if (target && id_t == -1) {
+        fprintf(stderr, "Target '%s' não encontrado\n", target);
+        return;
+    }
+
+    if (target && id_t == id_m) {
+        fprintf(stderr, "Membro e target são iguais. Não houve mudança\n");
+        return;
+    }
+
+    if (id_m == id_t + 1){
+        fprintf(stderr, "Membro está na posição correta. Não houve mudança\n");
+        return;
+    }
+
+    struct infoMember info_m = dir->members[id_m];
+    struct infoMember info_t = dir->members[id_t];
+
+    // Copiar arquivo para o final 
+    long fim_arquivo;
+    fseek(archive, 0, SEEK_END);
+    fim_arquivo = ftell(archive);
+    shift_right_archive(archive, info_m.offset, fim_arquivo, info_m.diskSize);
+
+    // Se o info_m está antes do target
+    if(id_m < id_t){
+        // Mover de id_m + 1 até target para a esquerda
+        size_t big_chunk = 0;
+        long curr_offset = info_m.offset;
+        for(ssize_t i = id_m + 1; i <= id_t; i++){
+            // calcula tamanho que vai ser shiftado
+            big_chunk += dir->members[i].diskSize;
+            // atualiza pos do diretório
+            dir->members[i].pos--;
+            dir->members[i - 1] = dir->members[i];
+            dir->members[i - 1].offset = curr_offset;
+            curr_offset += dir->members[i - 1].diskSize;
+        }
+        shift_left_archive(archive, info_m.offset + info_m.diskSize, info_m.offset, big_chunk);
+
+        // volta o M para a posição do target
+        long novo_offset = dir->members[id_t - 1].offset + dir->members[id_t - 1].diskSize;
+        dir->members[id_t] = info_m;
+        dir->members[id_t].pos = id_t;
+        dir->members[id_t].offset = novo_offset;
+        shift_left_archive(archive, fim_arquivo, novo_offset, info_m.diskSize);
+    }else{
+        // Mover de id_t + 1 até id_m - 1 para a esquerda
+        size_t big_chunk = 0;
+        long curr_offset = dir->members[id_m + 1].offset;
+        for(ssize_t i = id_m - 1; i > id_t; i--){
+            // calcula tamanho que vai ser shiftado
+            big_chunk += dir->members[i].diskSize;
+            // atualiza pos do diretório
+            dir->members[i].pos++;
+            dir->members[i + 1] = dir->members[i];
+            curr_offset -= dir->members[i + 1].diskSize;
+            dir->members[i + 1].offset = curr_offset;
+        }
+        shift_right_archive(archive, info_t.offset + info_t.diskSize, dir->members[id_t + 2]. offset, big_chunk);
+
+        // volta o M para a posição do target
+        long novo_offset = info_t.offset + info_t.diskSize;
+        dir->members[id_t + 1] = info_m;
+        dir->members[id_t + 1].pos = id_t + 1;
+        dir->members[id_t + 1].offset = novo_offset;
+        shift_left_archive(archive, fim_arquivo, novo_offset, info_m.diskSize);
+    }
+    escreve_diretorio(archive, dir);
+    truncate (archive_name, fim_arquivo);
+}
+
 
 int main(int argc, char *argv[]){
     const char* archive_name = argv[2];
@@ -240,7 +359,42 @@ int main(int argc, char *argv[]){
     }else{
         dir = ler_diretorio(archive);
     }
-    memberInsert(archive, argc, argv, dir);  
-    
+    char option;
+    option = getopt(argc, argv, "pimxrc");
+    switch(option){
+        case 'p':
+            printf("foi p\n");
+            memberInsert(archive, argc, argv, dir);  
+            break;
+        case 'i':
+            printf("foi i\n");
+            break;
+        case 'm':
+            printf("foi m\n");
+            if(argc < 4){
+                perror("Para inserção no ínicio passar NULL como target");
+            }else if(argc == 4){
+                move_member(archive, argv[3], argv[4], dir, archive_name);
+            }else if(argc == 5){
+                move_member(archive, argv[3], argv[4], dir, archive_name);
+            }
+            break;
+        case 'x':
+            printf("foi x\n");
+            break;
+        case 'r':
+            printf("foi r\n");
+            break;
+        case 'c':
+            printf("foi c\n");
+            break;
+        default:
+            printf("Argumentos: -p -i -m -x -r -c\n");
+            return 1;
+    }
+    free(dir->members);
+    free(dir);
+    fclose(archive);
+
     return 0;
 }
