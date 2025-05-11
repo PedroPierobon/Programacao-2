@@ -114,7 +114,7 @@ void escreve_diretorio(FILE* archive, struct directory* dir) {
 // Retorna um diretório lido dentro do archive
 struct directory* ler_diretorio(FILE* archive){
     rewind(archive);
-    long num;
+    int num;
     if (fread(&num, sizeof(int), 1, archive) != 1) {
         perror("Erro ao ler o diretório");
         return NULL;
@@ -169,55 +169,120 @@ void append_diretorio(struct directory* dir, const char* member_name){
     printf("Última modificação: %s", ctime(&dir->members[dir->N].modTime));
 }
 
+int encontra_membro(struct directory* dir, const char* nome) {
+    for (int i = 0; i < dir->N; i++) {
+        if (strcmp(dir->members[i].name, nome) == 0) {
+            return i; // retorna o índice do membro
+        }
+    }
+    return -1;
+}
+
+void substitui_membro(FILE* archive, struct directory* dir, const char* name, int idx){
+    struct stat statbuf;
+    if (stat(name, &statbuf) != 0) {
+        perror("Erro ao obter stat");
+        return;
+    }
+    long deslocamento = statbuf.st_size - dir->members[idx].diskSize;
+    // Se o arquivo novo é menor
+    if(deslocamento < 0){
+        fseek(archive, dir->members[idx].offset, SEEK_SET);
+        escreve_membro(archive, name);
+
+        size_t big_chunk = 0;
+        for(int i = idx + 1; i < dir->N; i++){
+            big_chunk += dir->members[i].diskSize;
+            dir->members[i].offset += deslocamento;
+        }
+        if (big_chunk > 0){
+            shift_left_archive(archive, dir->members[idx].offset + dir->members[idx].diskSize, 
+                                dir->members[idx].offset + dir->members[idx].diskSize + deslocamento, big_chunk);
+        }
+        
+        dir->members[idx].diskSize = statbuf.st_size;
+        dir->members[idx].modTime = statbuf.st_mtime;
+    }else if (deslocamento > 0) {
+        // Novo arquivo é maior — desloca pra direita antes de escrever
+        size_t big_chunk = 0;
+        for (int i = idx + 1; i < dir->N; i++) {
+            big_chunk += dir->members[i].diskSize;
+            dir->members[i].offset += deslocamento;
+        }
+
+        if (big_chunk > 0) {
+            long inicio_deslocamento = dir->members[idx].offset + dir->members[idx].diskSize;
+            shift_right_archive(archive, inicio_deslocamento, inicio_deslocamento + deslocamento, big_chunk);
+        }
+
+        // Escreve o novo membro no local do antigo
+        fseek(archive, dir->members[idx].offset, SEEK_SET);
+        escreve_membro(archive, name);
+
+        dir->members[idx].diskSize = statbuf.st_size;
+        dir->members[idx].modTime = statbuf.st_mtime;
+    } else {
+        // Mesmo tamanho, só sobrescreve
+        fseek(archive, dir->members[idx].offset, SEEK_SET);
+        escreve_membro(archive, name);
+        dir->members[idx].modTime = statbuf.st_mtime;
+    }
+
+    escreve_diretorio(archive, dir);
+}
+
 // Insere membro no archive.vc
-void memberInsert(FILE* archive, int argc, char* argv[], struct directory* dir){
-    int qtd_membros = argc - 3;
+void memberInsert(FILE* archive, int N_novos, char* novos[], struct directory* dir) {
+    if (N_novos == 0) return;
+
     int old_N = dir->N;
-    int new_N = dir->N + qtd_membros;
-    
+    int new_N = old_N + N_novos;
+
     // Realloc para caber os novos membros
-    if(!(dir->members = realloc(dir->members, new_N * sizeof(struct infoMember)))){
+    struct infoMember* temp = realloc(dir->members, new_N * sizeof(struct infoMember));
+    if (!temp) {
         perror("Erro ao realocar vetor de infoMember");
         return;
     }
-    
-    // Adiciona as informações dos novos membros no vetor
-    for (int i = 3; i < argc; i++){
-        append_diretorio(dir, argv[i]);
+    dir->members = temp;
+
+    // Adiciona informações ao diretório
+    for (int i = 0; i < N_novos; i++) {
+        append_diretorio(dir, novos[i]);
         dir->N++;
     }
 
-    // Faz o deslocamento se não era vazio o arquivo
-    if(old_N != 0){
-        long deslocamento = qtd_membros * sizeof(struct infoMember);
+    // Se já havia membros, desloca o conteúdo para abrir espaço
+    if (old_N != 0) {
+        long deslocamento = N_novos * sizeof(struct infoMember);
         size_t big_chunk = 0;
-        for(int i = 0; i < old_N; i++){
+        for (int i = 0; i < old_N; i++) {
             big_chunk += dir->members[i].diskSize;
         }
+
         shift_right_archive(archive, dir->members[0].offset, dir->members[0].offset + deslocamento, big_chunk);
-        
-        // Agora com o devido espaçamento escreve novos membros no final
+
+        // Escreve novos membros no final do arquivo
         fseek(archive, 0, SEEK_END);
-        for (int i = 3; i < argc; i++){
-            escreve_membro(archive, argv[i]);
+        for (int i = 0; i < N_novos; i++) {
+            escreve_membro(archive, novos[i]);
         }
-        
-        // Membros devidamente posicionados, atualiza offset
-        atualiza_offset(dir);
-        
-        // Por fim escreve diretório
-        escreve_diretorio(archive, dir);
-    }else{
-        atualiza_offset(dir);
 
+        atualiza_offset(dir);
+        escreve_diretorio(archive, dir);
+
+    } else {
+        // Caso era um diretório vazio
+        atualiza_offset(dir);
         escreve_diretorio(archive, dir);
 
         fseek(archive, 0, SEEK_END);
-        for (int i = 3; i < argc; i++){
-            escreve_membro(archive, argv[i]);
+        for (int i = 0; i < N_novos; i++) {
+            escreve_membro(archive, novos[i]);
         }
     }
 }
+
 
 void move_member(FILE* archive, const char* member, const char* target, struct directory* dir, const char* archive_name) {
     // Procura o id dos membros buscados
@@ -364,7 +429,32 @@ int main(int argc, char *argv[]){
     switch(option){
         case 'p':
             printf("foi p\n");
-            memberInsert(archive, argc, argv, dir);  
+            int N_novos = 0;
+            char **novos = NULL;
+            for (int i = 3; i < argc; i++) {
+                int idx = encontra_membro(dir, argv[i]);
+                if (idx != -1) {
+                    substitui_membro(archive, dir, argv[i], idx);
+                } else {
+                    N_novos++;
+                    char **temp[] = realloc(novos, N_novos * sizeof(char*));
+                    if (!temp) {
+                        perror("Erro ao realocar novos membros");
+                        exit(1);
+                    }
+                    novos = temp;
+                    novos[N_novos - 1] = strdup(argv[i]);
+                    if (!novos[N_novos - 1]) {
+                        perror("Erro ao duplicar string");
+                        exit(1);
+                    }
+                }
+            }
+            memberInsert(archive, N_novos, novos, dir);
+            for (int i = 0; i < N_novos; i++) {
+                free(novos[i]);
+            }
+            free(novos);              
             break;
         case 'i':
             printf("foi i\n");
