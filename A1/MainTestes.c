@@ -825,6 +825,12 @@ int main(int argc, char *argv[]){
             break;
 
         case 'r':
+            if(argc == 3) {
+                while (dir->N > 0) {
+                    remove_membro(archive, dir, 0);
+                    truncate(archive_name, dir->members[dir->N - 1].offset + dir->members[dir->N - 1].diskSize);
+                }
+            }
             for (int i = 3; i < argc; i++) {
                 int idx = encontra_membro(dir, argv[i]);
                 if (idx == -1) {
@@ -833,7 +839,7 @@ int main(int argc, char *argv[]){
                 }
             
                 remove_membro(archive, dir, idx);
-                truncate(archive_name, dir->members[dir->N].offset + dir->members[dir->N].diskSize);
+                truncate(archive_name, dir->members[dir->N - 1].offset + dir->members[dir->N - 1].diskSize);
                 printf("Removido: %s\n", argv[i]);
             }
             break;
