@@ -50,4 +50,6 @@ void atualiza_offset(struct directory* dir);
 // Dir deve ter sido alocado espaço para a última posição
 void append_diretorio(struct directory* dir, const char* member_name);
 
+void memberInsert_comp(FILE* archive, int N_novos, char* novos[], struct directory* dir);
+
 #endif
