@@ -668,8 +668,6 @@ void extrai_membro(FILE* archive, struct infoMember* membro) {
     free(output);
 }
 
-
-
 void extract(FILE* archive, struct directory* dir, int argc, char* argv[]) {
     if (argv == NULL) {
         // Extrair todos
@@ -694,6 +692,37 @@ void extract(FILE* archive, struct directory* dir, int argc, char* argv[]) {
     }
 }
 
+void remove_membro(FILE* archive, struct directory* dir, size_t idx){
+    struct infoMember target = dir->members[idx];
+    // Membros a direita shiftam a esquerda dir.members[idx].diskSize
+    size_t tam = 0;
+    for(size_t i = idx + 1; i < dir->N; i++){
+        tam += dir->members[i].diskSize;
+        dir->members[i].pos = i - 1;
+        dir->members[i - 1] = dir->members[i];
+    }
+    shift_left_archive(archive, target.offset + target.diskSize, target.offset, tam);
+
+    // Realloc do vetor dos infoMembers e atualização de posições
+    dir->N--;
+    struct infoMember* temp = realloc(dir->members, dir->N * sizeof(struct infoMember));
+    if (!temp) {
+        perror("Erro ao realocar vetor de infoMember");
+        return;
+    }
+    dir->members = temp;
+
+    for(size_t i = 0; i < idx; i++){
+        tam += dir->members[i].diskSize;
+    }
+    
+    // Shift Left de todos os membros 1 * sizeof(struct infoMember)
+    shift_left_archive(archive, dir->members[0].offset, dir->members[0].offset - sizeof(struct infoMember), tam);
+    // Atualização de offsets no dir
+    atualiza_offset(dir);
+    // Escreve dir
+    escreve_diretorio(archive, dir);
+}
 
 
 int main(int argc, char *argv[]){
@@ -796,7 +825,17 @@ int main(int argc, char *argv[]){
             break;
 
         case 'r':
-            printf("foi r\n");
+            for (int i = 3; i < argc; i++) {
+                int idx = encontra_membro(dir, argv[i]);
+                if (idx == -1) {
+                    fprintf(stderr, "Membro \"%s\" não encontrado.\n", argv[i]);
+                    continue;
+                }
+            
+                remove_membro(archive, dir, idx);
+                truncate(archive_name, dir->members[dir->N].offset + dir->members[dir->N].diskSize);
+                printf("Removido: %s\n", argv[i]);
+            }
             break;
 
         case 'c':
