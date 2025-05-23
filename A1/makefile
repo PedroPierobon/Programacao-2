@@ -2,7 +2,7 @@
 TARGET = vinac
 
 # Fontes
-SRCS = MainTestes.c lz.c
+SRCS = main.c lz.c archive.c directory.c vinac.c
 
 # Compilador e flags
 CC = gcc

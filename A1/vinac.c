@@ -1,44 +1,64 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "directory.h"
+#include "archive.h"
 #include "vinac.h"
 
-//escrever membro
-//escrever diretorio
-//move
+// Insere membro no archive.vc
+void insere(FILE* archive, int N_novos, char* novos[], struct directory* dir) {
+    if (N_novos == 0) return;
 
+    int old_N = dir->N;
+    int new_N = old_N + N_novos;
 
+    // Realloc para caber os novos membros
+    struct infoMember* temp = realloc(dir->members, new_N * sizeof(struct infoMember));
+    if (!temp) {
+        perror("Erro ao realocar vetor de infoMember");
+        return;
+    }
+    dir->members = temp;
 
-struct infoMember* createSMember(char* name, int uid,  )
+    // Adiciona informações ao diretório
+    for (int i = 0; i < N_novos; i++) {
+        append_diretorio(dir, novos[i]);
+        dir->N++;
+    }
 
-void directoryRead(FILE* archive){
-    
-}
+    // Se já havia membros, desloca o conteúdo para abrir espaço
+    if (old_N != 0) {
+        long deslocamento = N_novos * sizeof(struct infoMember);
+        size_t big_chunk = 0;
+        for (int i = 0; i < old_N; i++) {
+            big_chunk += dir->members[i].diskSize;
+        }
 
-void appendMember(FILE* member, FILE* archive){
-    if 
-}
+        shift_right_archive(archive, dir->members[0].offset, dir->members[0].offset + deslocamento, big_chunk);
 
-void memberInsert(const char *member_name, const char *archive_name){
-    FILE* archive = fopen(archive_name, "r+");
-    if(!archive){
-        archive = fopen(archive_name, "w+");
-        if(!archive){
-            fprintf(stderr, "Erro ao criar o arquivo archive: %s\n", archive_name);
-            return;
+        // Escreve novos membros no final do arquivo
+        fseek(archive, 0, SEEK_END);
+        for (int i = 0; i < N_novos; i++) {
+            escreve_membro(archive, novos[i]);
+        }
+
+        atualiza_offset(dir);
+        escreve_diretorio(archive, dir);
+
+    } else {
+        // Caso era um diretório vazio
+        atualiza_offset(dir);
+        escreve_diretorio(archive, dir);
+
+        fseek(archive, 0, SEEK_END);
+        for (int i = 0; i < N_novos; i++) {
+            escreve_membro(archive, novos[i]);
         }
     }
-//    else{
-//        directoryRead(archive);
-    }
-    FILE* member = fopen(member_name, "r");
-    if(!member){
-        fprintf(stderr, "Erro ao abrir o arquivo membro: %s\n", member_name);
-        return;
-    }        
-    appendMember(member, archive);
-    fixupArchive(archive);
-
-    fclose(member);
-    fclose(archive);
 }

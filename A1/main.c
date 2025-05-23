@@ -3,40 +3,582 @@
 #include <unistd.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
+#include "directory.h"
+#include "archive.h"
 #include "vinac.h"
+#include "lz.h"
 
-int main(int argc, char *argv[]){
-    char option;
-    const char *archive = argv[2];
-    while((option = getopt(argc, argv, "pimxrc")) != -1){
-        switch(option){
-            case 'p':
-                printf("foi p\n");
-                for(int i = optind + 1; i < argc; i++){
-                    memberInsert(argv[i], archive);
-                }
-                break;
-            case 'i':
-                printf("foi i\n");
-                break;
-            case 'm':
-                printf("foi m\n");
-                break;
-            case 'x':
-                printf("foi x\n");
-                break;
-            case 'r':
-                printf("foi r\n");
-                break;
-            case 'c':
-                printf("foi c\n");
-                break;
-            default:
-                printf("Argumentos: -p -i -m -x -r -c\n");
-                return 1;
+void escreve_membro_comp(FILE* archive, const char* filename) {
+    struct stat st;
+    if (stat(filename, &st) != 0) {
+        perror("Erro ao obter informações do arquivo");
+        return;
+    }
+
+    long original_size = st.st_size;
+
+    FILE* f = fopen(filename, "rb");
+    if (!f) {
+        perror("Erro ao abrir arquivo");
+        return;
+    }
+
+    unsigned char* input = malloc(original_size);
+    if (!input) {
+        perror("Erro ao alocar memória para input");
+        fclose(f);
+        return;
+    }
+
+    fread(input, 1, original_size, f);
+    fclose(f);
+
+    long max_compressed_size = original_size + (original_size / 250) + 1;
+    unsigned char* output = malloc(max_compressed_size);
+    if (!output) {
+        perror("Erro ao alocar memória para output");
+        free(input);
+        return;
+    }
+
+    int compressed_size = LZ_Compress(input, output, original_size);
+
+    if (compressed_size < original_size) {
+        fwrite(output, 1, compressed_size, archive);
+    } else {
+        fwrite(input, 1, original_size, archive);
+    }
+
+    free(input);
+    free(output);
+}
+
+void append_diretorio_comp(struct directory* dir, const char* filename) {
+    struct stat st;
+    if (stat(filename, &st) != 0) {
+        perror("Erro ao obter informações do arquivo");
+        return;
+    }
+
+    long original_size = st.st_size;
+    time_t mod_time = st.st_mtime;
+
+    FILE* f = fopen(filename, "rb");
+    if (!f) {
+        perror("Erro ao abrir arquivo para leitura");
+        return;
+    }
+
+    unsigned char* input = malloc(original_size);
+    if (!input) {
+        perror("Erro ao alocar memória para input");
+        fclose(f);
+        return;
+    }
+
+    fread(input, 1, original_size, f);
+    fclose(f);
+
+    long max_compressed_size = original_size + (original_size / 250) + 1;
+    unsigned char* output = malloc(max_compressed_size);
+    if (!output) {
+        perror("Erro ao alocar memória para output");
+        free(input);
+        return;
+    }
+
+    int compressed_size = LZ_Compress(input, output, original_size);
+
+    // Decide se guarda comprimido ou não
+    int use_compressed = compressed_size < original_size;
+
+    struct infoMember novo;
+    snprintf(novo.name, sizeof(novo.name), "%s", filename);
+    novo.originalSize = original_size;
+    novo.diskSize = use_compressed ? compressed_size : original_size;
+    novo.modTime = mod_time;
+    novo.pos = dir->N;
+    novo.offset = -1; // será definido depois por atualiza_offset()
+
+    dir->members[dir->N] = novo;
+
+    printf("==== Membro %ld comprimido adicionado ====\n", dir->N);
+    printf("Nome: %s\n", dir->members[dir->N].name);
+    printf("Tamanho original: %ld bytes\n", dir->members[dir->N].originalSize);
+    printf("Tamanho em disco: %ld bytes\n", dir->members[dir->N].diskSize);
+    printf("Posição no diretório: %d\n", dir->members[dir->N].pos);
+    printf("Última modificação: %s", ctime(&dir->members[dir->N].modTime));
+
+    free(input);
+    free(output);
+}
+
+void substitui_membro_comp(FILE* archive, struct directory* dir, const char* name, int idx) {
+    struct stat st;
+    if (stat(name, &st) != 0) {
+        perror("Erro ao obter stat do arquivo");
+        return;
+    }
+
+    long original_size = st.st_size;
+    time_t mod_time = st.st_mtime;
+
+    FILE* f = fopen(name, "rb");
+    if (!f) {
+        perror("Erro ao abrir arquivo para leitura");
+        return;
+    }
+
+    unsigned char* input = malloc(original_size);
+    if (!input) {
+        perror("Erro ao alocar entrada");
+        fclose(f);
+        return;
+    }
+    fread(input, 1, original_size, f);
+    fclose(f);
+
+    long max_size = original_size + (original_size / 250) + 1;
+    unsigned char* output = malloc(max_size);
+    if (!output) {
+        perror("Erro ao alocar saída");
+        free(input);
+        return;
+    }
+
+    int compressed_size = LZ_Compress(input, output, original_size);
+
+    // Verifica se a compressão realmente reduziu o tamanho
+    if (compressed_size >= original_size) {
+        // Se a compressão não reduzir o tamanho, mantém o arquivo original
+        compressed_size = original_size;
+        memcpy(output, input, original_size);  // Copia o conteúdo original para output sem compressão
+    }
+
+    long deslocamento = compressed_size - dir->members[idx].diskSize;
+
+    long pos_inicio = dir->members[idx].offset;
+    long pos_fim = pos_inicio + dir->members[idx].diskSize;
+
+    // Atualiza offsets dos membros seguintes
+    size_t big_chunk = 0;
+    for (size_t i = idx + 1; i < dir->N; i++) {
+        big_chunk += dir->members[i].diskSize;
+        dir->members[i].offset += deslocamento;
+    }
+
+    if (deslocamento < 0) {
+        shift_left_archive(archive, pos_fim, pos_fim + deslocamento, big_chunk);
+    } else if (deslocamento > 0) {
+        shift_right_archive(archive, pos_fim, pos_fim + deslocamento, big_chunk);
+    }
+
+    fseek(archive, pos_inicio, SEEK_SET);
+    fwrite(output, 1, compressed_size, archive);
+
+    
+    dir->members[idx].diskSize = compressed_size;
+    dir->members[idx].originalSize = original_size;
+    dir->members[idx].modTime = mod_time;
+
+    escreve_diretorio(archive, dir);
+
+    free(input);
+    free(output);
+}
+
+void insere_comp(FILE* archive, int N_novos, char* novos[], struct directory* dir) {
+    if (N_novos == 0) return;
+
+    int old_N = dir->N;
+    int new_N = old_N + N_novos;
+
+    // Realloc para caber os novos membros
+    struct infoMember* temp = realloc(dir->members, new_N * sizeof(struct infoMember));
+    if (!temp) {
+        perror("Erro ao realocar vetor de infoMember");
+        return;
+    }
+    dir->members = temp;
+
+    // Adiciona informações ao diretório (sem atualizar offset ainda)
+    for (int i = 0; i < N_novos; i++) {
+        append_diretorio_comp(dir, novos[i]);
+        dir->N++;
+    }
+
+    // Se já havia membros, desloca para abrir espaço pro novo diretório
+    if (old_N != 0) {
+        long deslocamento = N_novos * sizeof(struct infoMember);
+        size_t big_chunk = 0;
+        for (int i = 0; i < old_N; i++) {
+            big_chunk += dir->members[i].diskSize;
         }
+
+        shift_right_archive(archive, dir->members[0].offset, dir->members[0].offset + deslocamento, big_chunk);
+    }
+
+    // Escreve membros no final do arquivo
+    fseek(archive, 0, SEEK_END);
+    for (int i = 0; i < N_novos; i++) {
+        long before = ftell(archive);
+        escreve_membro_comp(archive, novos[i]);
+        long after = ftell(archive);
+        dir->members[old_N + i].diskSize = after - before;
+    }
+
+    // Agora sim, atualizar offsets e escrever diretório
+    atualiza_offset(dir);
+    escreve_diretorio(archive, dir);
+}
+
+void move_member(FILE* archive, const char* member, const char* target, struct directory* dir, const char* archive_name) {
+    // Procura o id dos membros buscados
+    ssize_t id_m = -1, id_t = -1;
+    for (ssize_t i = 0; (size_t)i < dir->N; i++) {
+        if (strcmp(dir->members[i].name, member) == 0) id_m = i;
+        if (target && strcmp(dir->members[i].name, target) == 0) id_t = i;
+    }
+
+    if (!target) {
+        if (id_m == 0) {
+            fprintf(stderr, "Membro já está na posição inicial. Não houve mudança\n");
+            return;
+        }
+    
+        struct infoMember info_m = dir->members[id_m];
+    
+        // Copia membro para o fim
+        fseek(archive, 0, SEEK_END);
+        long fim_arquivo = ftell(archive);
+        shift_right_archive(archive, info_m.offset, fim_arquivo, info_m.diskSize);
+
+        long inicio_membros = dir->members[0].offset;
+    
+        // Move os outros para a direita
+        size_t big_chunk = 0;
+        long curr_offset = info_m.offset + info_m.diskSize;
+        for (ssize_t i = id_m - 1; i >= 0; i--) {
+            big_chunk += dir->members[i].diskSize;
+            dir->members[i].pos++;
+            dir->members[i + 1] = dir->members[i];
+            curr_offset -= dir->members[i + 1].diskSize;
+            dir->members[i + 1].offset = curr_offset;
+        }
+        shift_right_archive(archive, inicio_membros, inicio_membros + info_m.diskSize, big_chunk);
+    
+        // Coloca info_m na posição 0
+        dir->members[0] = info_m;
+        dir->members[0].pos = 0;
+        dir->members[0].offset = inicio_membros;
+        shift_left_archive(archive, fim_arquivo, inicio_membros, info_m.diskSize);
+    
+        truncate(archive_name, fim_arquivo);
+        escreve_diretorio(archive, dir);
+        return;
     }
     
+    if (id_m == -1) {
+        fprintf(stderr, "Membro '%s' não encontrado\n", member);
+        return;
+    }
+
+    if (target && id_t == -1) {
+        fprintf(stderr, "Target '%s' não encontrado\n", target);
+        return;
+    }
+
+    if (target && id_t == id_m) {
+        fprintf(stderr, "Membro e target são iguais. Não houve mudança\n");
+        return;
+    }
+
+    if (id_m == id_t + 1){
+        fprintf(stderr, "Membro está na posição correta. Não houve mudança\n");
+        return;
+    }
+
+    struct infoMember info_m = dir->members[id_m];
+    struct infoMember info_t = dir->members[id_t];
+
+    // Copiar arquivo para o final 
+    long fim_arquivo;
+    fseek(archive, 0, SEEK_END);
+    fim_arquivo = ftell(archive);
+    shift_right_archive(archive, info_m.offset, fim_arquivo, info_m.diskSize);
+
+    // Se o info_m está antes do target
+    if(id_m < id_t){
+        // Mover de id_m + 1 até target para a esquerda
+        size_t big_chunk = 0;
+        long curr_offset = info_m.offset;
+        for(ssize_t i = id_m + 1; i <= id_t; i++){
+            // calcula tamanho que vai ser shiftado
+            big_chunk += dir->members[i].diskSize;
+            // atualiza pos do diretório
+            dir->members[i].pos--;
+            dir->members[i - 1] = dir->members[i];
+            dir->members[i - 1].offset = curr_offset;
+            curr_offset += dir->members[i - 1].diskSize;
+        }
+        shift_left_archive(archive, info_m.offset + info_m.diskSize, info_m.offset, big_chunk);
+
+        // volta o M para a posição do target
+        long novo_offset = dir->members[id_t - 1].offset + dir->members[id_t - 1].diskSize;
+        dir->members[id_t] = info_m;
+        dir->members[id_t].pos = id_t;
+        dir->members[id_t].offset = novo_offset;
+        shift_left_archive(archive, fim_arquivo, novo_offset, info_m.diskSize);
+    }else{
+        // Mover de id_t + 1 até id_m - 1 para a esquerda
+        size_t big_chunk = 0;
+        long curr_offset = dir->members[id_m + 1].offset;
+        for(ssize_t i = id_m - 1; i > id_t; i--){
+            // calcula tamanho que vai ser shiftado
+            big_chunk += dir->members[i].diskSize;
+            // atualiza pos do diretório
+            dir->members[i].pos++;
+            dir->members[i + 1] = dir->members[i];
+            curr_offset -= dir->members[i + 1].diskSize;
+            dir->members[i + 1].offset = curr_offset;
+        }
+        shift_right_archive(archive, info_t.offset + info_t.diskSize, dir->members[id_t + 2]. offset, big_chunk);
+
+        // volta o M para a posição do target
+        long novo_offset = info_t.offset + info_t.diskSize;
+        dir->members[id_t + 1] = info_m;
+        dir->members[id_t + 1].pos = id_t + 1;
+        dir->members[id_t + 1].offset = novo_offset;
+        shift_left_archive(archive, fim_arquivo, novo_offset, info_m.diskSize);
+    }
+    escreve_diretorio(archive, dir);
+    truncate (archive_name, fim_arquivo);
+}
+
+void print_directory_info(struct directory* dir) {
+    printf("==== Listando conteúdo do arquivo ====\n");
+    for (size_t i = 0; i < dir->N; i++) {
+        struct infoMember* m = &dir->members[i];
+        printf("==== Membro %zu ====\n", i);
+        printf("Nome: %s\n", m->name);
+        printf("Tamanho original: %ld bytes\n", m->originalSize);
+        printf("Tamanho em disco: %ld bytes\n", m->diskSize);
+        printf("Posição no diretório: %d\n", m->pos);
+        printf("Última modificação: %s", ctime(&m->modTime));
+    }
+}
+
+void extrai_membro(FILE* archive, struct infoMember* membro) {
+    unsigned char* buffer = malloc(membro->diskSize);
+    unsigned char* output = malloc(membro->originalSize);
+
+    if (!buffer || !output) {
+        perror("Erro ao alocar memória");
+        free(buffer);
+        free(output);
+        return;
+    }
+
+    fseek(archive, membro->offset, SEEK_SET);
+    fread(buffer, 1, membro->diskSize, archive);
+
+    if (membro->diskSize < membro->originalSize) {
+        LZ_Uncompress(buffer, output, membro->diskSize);
+    } else {
+        memcpy(output, buffer, membro->originalSize);
+    }
+
+    FILE* out = fopen(membro->name, "wb");
+    if (!out) {
+        perror("Erro ao criar arquivo extraído");
+        free(buffer);
+        free(output);
+        return;
+    }
+
+    fwrite(output, 1, membro->originalSize, out);
+    fclose(out);
+
+    printf("Extraído: %s\n", membro->name);
+    free(buffer);
+    free(output);
+}
+
+void extract(FILE* archive, struct directory* dir, int argc, char* argv[]) {
+    if (argv == NULL) {
+        // Extrair todos
+        for (size_t i = 0; i < dir->N; i++) {
+            extrai_membro(archive, &dir->members[i]);
+        }
+    } else {
+        // Extrair membros específicos
+        for (int j = 3; j < argc; j++) {
+            int encontrado = 0;
+            for (size_t i = 0; i < dir->N; i++) {
+                if (strcmp(argv[j], dir->members[i].name) == 0) {
+                    extrai_membro(archive, &dir->members[i]);
+                    encontrado = 1;
+                    break;
+                }
+            }
+            if (!encontrado) {
+                fprintf(stderr, "Membro \"%s\" não encontrado no arquivo.\n", argv[j]);
+            }
+        }
+    }
+}
+
+void remove_membro(FILE* archive, struct directory* dir, size_t idx){
+    struct infoMember target = dir->members[idx];
+    // Membros a direita shiftam a esquerda dir.members[idx].diskSize
+    size_t tam = 0;
+    for(size_t i = idx + 1; i < dir->N; i++){
+        tam += dir->members[i].diskSize;
+        dir->members[i].pos = i - 1;
+        dir->members[i - 1] = dir->members[i];
+    }
+    shift_left_archive(archive, target.offset + target.diskSize, target.offset, tam);
+
+    // Realloc do vetor dos infoMembers e atualização de posições
+    dir->N--;
+    struct infoMember* temp = realloc(dir->members, dir->N * sizeof(struct infoMember));
+    if (!temp) {
+        perror("Erro ao realocar vetor de infoMember");
+        return;
+    }
+    dir->members = temp;
+
+    for(size_t i = 0; i < idx; i++){
+        tam += dir->members[i].diskSize;
+    }
+    
+    // Shift Left de todos os membros 1 * sizeof(struct infoMember)
+    shift_left_archive(archive, dir->members[0].offset, dir->members[0].offset - sizeof(struct infoMember), tam);
+    // Atualização de offsets no dir
+    atualiza_offset(dir);
+    // Escreve dir
+    escreve_diretorio(archive, dir);
+}
+
+int main(int argc, char *argv[]){
+    const char* archive_name = argv[2];
+    struct directory* dir = NULL;
+
+    FILE* archive = abre_arquivo(archive_name, &dir);
+
+    int N_novos = 0;    
+    char **novos = NULL;
+
+    char option = getopt(argc, argv, "pimxrc");
+
+    switch(option){
+        case 'p':
+            for (int i = 3; i < argc; i++) {
+                int idx = encontra_membro(dir, argv[i]);
+                if (idx != -1) {
+                    substitui_membro(archive, dir, argv[i], idx);
+                } else {
+                    N_novos++;
+                    char **temp = realloc(novos, N_novos * sizeof(char*));
+                    if (!temp) {
+                        perror("Erro ao realocar novos membros");
+                        exit(1);
+                    }
+                    novos = temp;
+                    novos[N_novos - 1] = strdup(argv[i]);
+                    if (!novos[N_novos - 1]) {
+                        perror("Erro ao duplicar string");
+                        exit(1);
+                    }
+                }
+            }
+            insere(archive, N_novos, novos, dir);
+            for (int i = 0; i < N_novos; i++) {
+                free(novos[i]);
+            }
+            free(novos);
+            break;
+
+        case 'i':
+            printf("foi i\n");
+            for (int i = 3; i < argc; i++) {
+                int idx = encontra_membro(dir, argv[i]);
+                if (idx != -1) {
+                    substitui_membro_comp(archive, dir, argv[i], idx);
+                } else {
+                    N_novos++;
+                    char **temp = realloc(novos, N_novos * sizeof(char*));
+                    if (!temp) {
+                        perror("Erro ao realocar novos membros");
+                        exit(1);
+                    }
+                    novos = temp;
+                    novos[N_novos - 1] = strdup(argv[i]);
+                    if (!novos[N_novos - 1]) {
+                        perror("Erro ao duplicar string");
+                        exit(1);
+                    }
+                }
+            }
+            insere_comp(archive, N_novos, novos, dir);
+            for (int i = 0; i < N_novos; i++) {
+                free(novos[i]);
+            }
+            free(novos);
+            break;
+
+        case 'm':
+            printf("foi m\n");
+            if(argc < 4){
+                perror("Para inserção no ínicio passar NULL como target");
+            }else if(argc == 4){
+                move_member(archive, argv[3], argv[4], dir, archive_name);
+            }else if(argc == 5){
+                move_member(archive, argv[3], argv[4], dir, archive_name);
+            }
+            break;
+
+        case 'x':
+            printf("foi x\n");
+            if (argc == 3){
+                extract(archive, dir, -1, NULL);
+            }else{
+                extract(archive, dir, argc, argv);
+            }
+            break;
+
+        case 'r':
+            for (int i = 3; i < argc; i++) {
+                int idx = encontra_membro(dir, argv[i]);
+                if (idx == -1) {
+                    fprintf(stderr, "Membro \"%s\" não encontrado.\n", argv[i]);
+                    continue;
+                }
+            
+                remove_membro(archive, dir, idx);
+                truncate(archive_name, dir->members[dir->N - 1].offset + dir->members[dir->N - 1].diskSize);
+                printf("Removido: %s\n", argv[i]);
+            }
+            break;
+
+        case 'c':
+            printf("foi c\n");
+            print_directory_info(dir);
+            break;
+
+        default:
+            printf("Argumentos: -p -i -m -x -r -c\n");
+            return 1;
+    }
+
+    free(dir->members);
+    free(dir);
+    fclose(archive);
+
     return 0;
 }
+
