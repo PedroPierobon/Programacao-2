@@ -179,7 +179,15 @@ void substitui_membro_comp(FILE* archive, struct directory* dir, const char* nam
         return;
     }
 
-    int compressed_size = LZ_Compress(input, output, original_size);
+    unsigned int* work = malloc((original_size + 65536) * sizeof(unsigned int));
+    if (!work) {
+        perror("Erro ao alocar buffer de trabalho");
+        free(input);
+        free(output);
+        return;
+    }
+
+    int compressed_size = LZ_CompressFast(input, output, original_size, work);
 
     // Verifica se a compressão realmente reduziu o tamanho
     if (compressed_size >= original_size) {
@@ -218,6 +226,7 @@ void substitui_membro_comp(FILE* archive, struct directory* dir, const char* nam
 
     escreve_diretorio(archive, dir);
 
+    free(work);
     free(input);
     free(output);
 }
@@ -256,7 +265,15 @@ void append_diretorio_comp(struct directory* dir, const char* filename) {
         return;
     }
 
-    int compressed_size = LZ_Compress(input, output, original_size);
+    unsigned int* work = malloc((original_size + 65536) * sizeof(unsigned int));
+    if (!work) {
+        perror("Erro ao alocar buffer de trabalho");
+        free(input);
+        free(output);
+        return;
+    }
+
+    int compressed_size = LZ_CompressFast(input, output, original_size, work);
 
     // Decide se guarda comprimido ou não
     int use_compressed = compressed_size < original_size;
@@ -278,6 +295,7 @@ void append_diretorio_comp(struct directory* dir, const char* filename) {
     printf("Posição no diretório: %d\n", dir->members[dir->N].pos);
     printf("Última modificação: %s", ctime(&dir->members[dir->N].modTime));
 
+    free(work);
     free(input);
     free(output);
 }

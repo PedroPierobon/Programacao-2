@@ -213,8 +213,8 @@ CMD_TEST[9] = [
 ]
 
 
-REPLACE_FLAGS = False
-STEP_EXECUTION = False
+REPLACE_FLAGS = True
+STEP_EXECUTION = True
 
 for test in [1,2,3,4,5,6,7,8,9]:
 	print("========================== EXECUTING TEST #" + str(test) + " ==========================")
