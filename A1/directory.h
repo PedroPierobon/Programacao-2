@@ -35,4 +35,10 @@ void append_diretorio(struct directory* dir, const char* member_name);
 // Passa pelo vetor de membros atualizando offset conforme a alocação do vetor
 void atualiza_offset(struct directory* dir);
 
+// Substitui o membro com mesmo nome pelo membro externo comprimido
+void substitui_membro_comp(FILE* archive, struct directory* dir, const char* name, int idx);
+
+// Append comprimido
+void append_diretorio_comp(struct directory* dir, const char* filename);
+
 #endif

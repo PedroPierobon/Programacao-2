@@ -9,6 +9,7 @@
 
 #include "directory.h"
 #include "archive.h"
+#include "lz.h"
 
 struct directory* cria_diretorio(int N) {
     struct directory* dir = malloc(sizeof(struct directory));
@@ -142,4 +143,138 @@ void atualiza_offset(struct directory* dir){
         dir->members[i].offset = new_offset;
         new_offset += dir->members[i].diskSize;
     }
+}
+
+void substitui_membro_comp(FILE* archive, struct directory* dir, const char* name, int idx) {
+    struct stat st;
+    if (stat(name, &st) != 0) {
+        perror("Erro ao obter stat do arquivo");
+        return;
+    }
+
+    long original_size = st.st_size;
+    time_t mod_time = st.st_mtime;
+
+    FILE* f = fopen(name, "rb");
+    if (!f) {
+        perror("Erro ao abrir arquivo para leitura");
+        return;
+    }
+
+    unsigned char* input = malloc(original_size);
+    if (!input) {
+        perror("Erro ao alocar entrada");
+        fclose(f);
+        return;
+    }
+    fread(input, 1, original_size, f);
+    fclose(f);
+
+    long max_size = original_size + (original_size / 250) + 1;
+    unsigned char* output = malloc(max_size);
+    if (!output) {
+        perror("Erro ao alocar saída");
+        free(input);
+        return;
+    }
+
+    int compressed_size = LZ_Compress(input, output, original_size);
+
+    // Verifica se a compressão realmente reduziu o tamanho
+    if (compressed_size >= original_size) {
+        // Se a compressão não reduzir o tamanho, mantém o arquivo original
+        compressed_size = original_size;
+        memcpy(output, input, original_size);  // Copia o conteúdo original para output sem compressão
+    }
+
+    long deslocamento = compressed_size - dir->members[idx].diskSize;
+
+    long pos_inicio = dir->members[idx].offset;
+    long pos_fim = pos_inicio + dir->members[idx].diskSize;
+
+    // Atualiza offsets dos membros seguintes
+    size_t big_chunk = 0;
+    for (size_t i = idx + 1; i < dir->N; i++) {
+        big_chunk += dir->members[i].diskSize;
+        dir->members[i].offset += deslocamento;
+    }
+
+    if (deslocamento < 0) {
+        shift_left_archive(archive, pos_fim, pos_fim + deslocamento, big_chunk);
+    } else if (deslocamento > 0) {
+        shift_right_archive(archive, pos_fim, pos_fim + deslocamento, big_chunk);
+    }
+
+    fseek(archive, pos_inicio, SEEK_SET);
+    fwrite(output, 1, compressed_size, archive);
+
+    
+    dir->members[idx].diskSize = compressed_size;
+    dir->members[idx].originalSize = original_size;
+    dir->members[idx].modTime = mod_time;
+
+    escreve_diretorio(archive, dir);
+
+    free(input);
+    free(output);
+}
+
+void append_diretorio_comp(struct directory* dir, const char* filename) {
+    struct stat st;
+    if (stat(filename, &st) != 0) {
+        perror("Erro ao obter informações do arquivo");
+        return;
+    }
+
+    long original_size = st.st_size;
+    time_t mod_time = st.st_mtime;
+
+    FILE* f = fopen(filename, "rb");
+    if (!f) {
+        perror("Erro ao abrir arquivo para leitura");
+        return;
+    }
+
+    unsigned char* input = malloc(original_size);
+    if (!input) {
+        perror("Erro ao alocar memória para input");
+        fclose(f);
+        return;
+    }
+
+    fread(input, 1, original_size, f);
+    fclose(f);
+
+    long max_compressed_size = original_size + (original_size / 250) + 1;
+    unsigned char* output = malloc(max_compressed_size);
+    if (!output) {
+        perror("Erro ao alocar memória para output");
+        free(input);
+        return;
+    }
+
+    int compressed_size = LZ_Compress(input, output, original_size);
+
+    // Decide se guarda comprimido ou não
+    int use_compressed = compressed_size < original_size;
+
+    struct infoMember novo;
+    snprintf(novo.name, sizeof(novo.name), "%s", filename);
+    novo.originalSize = original_size;
+    novo.diskSize = use_compressed ? compressed_size : original_size;
+    novo.modTime = mod_time;
+    novo.pos = dir->N;
+    novo.offset = -1; // será definido depois por atualiza_offset()
+
+    dir->members[dir->N] = novo;
+
+    printf("==== Membro %ld comprimido adicionado ====\n", dir->N);
+    printf("Nome: %s\n", dir->members[dir->N].name);
+    printf("Tamanho original: %ld bytes\n", dir->members[dir->N].originalSize);
+    printf("Tamanho em disco: %ld bytes\n", dir->members[dir->N].diskSize);
+    printf("Posição no diretório: %d\n", dir->members[dir->N].pos);
+    printf("Última modificação: %s", ctime(&dir->members[dir->N].modTime));
+
+    free(input);
+    free(output);
 }

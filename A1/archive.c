@@ -1,8 +1,15 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "archive.h"
 #include "directory.h"
+#include "lz.h"
 
 FILE* abre_arquivo (const char* archive_name, struct directory** dir) {
     FILE* archive = fopen(archive_name, "r+");
@@ -94,4 +101,85 @@ void escreve_membro(FILE* archive, const char *member_name){
         fwrite(buffer, 1, bytes, archive);
     }
     fclose(member);
+}
+
+void extrai_membro(FILE* archive, struct infoMember* membro) {
+    unsigned char* buffer = malloc(membro->diskSize);
+    unsigned char* output = malloc(membro->originalSize);
+
+    if (!buffer || !output) {
+        perror("Erro ao alocar memória");
+        free(buffer);
+        free(output);
+        return;
+    }
+
+    fseek(archive, membro->offset, SEEK_SET);
+    fread(buffer, 1, membro->diskSize, archive);
+
+    if (membro->diskSize < membro->originalSize) {
+        LZ_Uncompress(buffer, output, membro->diskSize);
+    } else {
+        memcpy(output, buffer, membro->originalSize);
+    }
+
+    FILE* out = fopen(membro->name, "wb");
+    if (!out) {
+        perror("Erro ao criar arquivo extraído");
+        free(buffer);
+        free(output);
+        return;
+    }
+
+    fwrite(output, 1, membro->originalSize, out);
+    fclose(out);
+
+    printf("Extraído: %s\n", membro->name);
+    free(buffer);
+    free(output);
+}
+
+void escreve_membro_comp(FILE* archive, const char* filename) {
+    struct stat st;
+    if (stat(filename, &st) != 0) {
+        perror("Erro ao obter informações do arquivo");
+        return;
+    }
+
+    long original_size = st.st_size;
+
+    FILE* f = fopen(filename, "rb");
+    if (!f) {
+        perror("Erro ao abrir arquivo");
+        return;
+    }
+
+    unsigned char* input = malloc(original_size);
+    if (!input) {
+        perror("Erro ao alocar memória para input");
+        fclose(f);
+        return;
+    }
+
+    fread(input, 1, original_size, f);
+    fclose(f);
+
+    long max_compressed_size = original_size + (original_size / 250) + 1;
+    unsigned char* output = malloc(max_compressed_size);
+    if (!output) {
+        perror("Erro ao alocar memória para output");
+        free(input);
+        return;
+    }
+
+    int compressed_size = LZ_Compress(input, output, original_size);
+
+    if (compressed_size < original_size) {
+        fwrite(output, 1, compressed_size, archive);
+    } else {
+        fwrite(input, 1, original_size, archive);
+    }
+
+    free(input);
+    free(output);
 }

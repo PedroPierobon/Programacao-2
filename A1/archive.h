@@ -23,4 +23,9 @@ void shift_left_archive(FILE* archive, long source, long dest,  size_t size);
 // Escreve Membro no ponteiro onde archive está
 void escreve_membro(FILE* archive, const char *member_name);
 
+// Extrai membro
+void extrai_membro(FILE* archive, struct infoMember* membro);
+
+void escreve_membro_comp(FILE* archive, const char* filename);
+
 #endif

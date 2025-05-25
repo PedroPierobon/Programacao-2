@@ -28,4 +28,19 @@ struct directory {
 // Insere membro no archive.vc
 void insere(FILE* archive, int N_novos, char* novos[], struct directory* dir);
 
+// Insere comprimido
+void insere_comp(FILE* archive, int N_novos, char* novos[], struct directory* dir);
+
+// Extrai
+void extract(FILE* archive, struct directory* dir, int argc, char* argv[]);
+
+// Move Membro para frente do Target
+void move_member(FILE* archive, const char* member, const char* target, struct directory* dir, const char* archive_name);
+
+// Remove
+void remove_membro(FILE* archive, struct directory* dir, size_t idx);
+
+// Printa todos os Membros do arquivo
+void printar(struct directory* dir);
+
 #endif
