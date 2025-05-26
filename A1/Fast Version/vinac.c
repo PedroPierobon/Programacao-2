@@ -93,20 +93,32 @@ void insere_comp(FILE* archive, int N_novos, char* novos[], struct directory* di
         }
 
         shift_right_archive(archive, dir->members[0].offset, dir->members[0].offset + deslocamento, big_chunk);
-    }
+        
+        // Escreve membros no final do arquivo
+        fseek(archive, 0, SEEK_END);
+        for (int i = 0; i < N_novos; i++) {
+            long before = ftell(archive);
+            escreve_membro_comp(archive, novos[i]);
+            long after = ftell(archive);
+            dir->members[old_N + i].diskSize = after - before;
+        }
 
-    // Escreve membros no final do arquivo
-    fseek(archive, 0, SEEK_END);
-    for (int i = 0; i < N_novos; i++) {
-        long before = ftell(archive);
-        escreve_membro_comp(archive, novos[i]);
-        long after = ftell(archive);
-        dir->members[old_N + i].diskSize = after - before;
-    }
+        atualiza_offset(dir);
+        escreve_diretorio(archive, dir);
+    }else{
+        // Escreve o Diretório antes caso arquivo vazio
+        atualiza_offset(dir);
+        escreve_diretorio(archive, dir);
 
-    // Agora sim, atualizar offsets e escrever diretório
-    atualiza_offset(dir);
-    escreve_diretorio(archive, dir);
+        // Escreve membros no final do arquivo
+        fseek(archive, 0, SEEK_END);
+        for (int i = 0; i < N_novos; i++) {
+            long before = ftell(archive);
+            escreve_membro_comp(archive, novos[i]);
+            long after = ftell(archive);
+            dir->members[old_N + i].diskSize = after - before;
+        }
+    }
 }
 
 void move_member(FILE* archive, const char* member, const char* target, struct directory* dir, const char* archive_name) {

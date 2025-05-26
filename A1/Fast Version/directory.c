@@ -128,13 +128,6 @@ void append_diretorio(struct directory* dir, const char* member_name){
     dir->members[dir->N].diskSize = statbuf.st_size;
     dir->members[dir->N].modTime = statbuf.st_mtime;
     dir->members[dir->N].pos = dir->N;
-
-    printf("==== Membro %ld adicionado ====\n", dir->N);
-    printf("Nome: %s\n", dir->members[dir->N].name);
-    printf("Tamanho original: %ld bytes\n", dir->members[dir->N].originalSize);
-    printf("Tamanho em disco: %ld bytes\n", dir->members[dir->N].diskSize);
-    printf("Posição no diretório: %d\n", dir->members[dir->N].pos);
-    printf("Última modificação: %s", ctime(&dir->members[dir->N].modTime));
 }
 
 // Passa pelo vetor de membros atualizando offset conforme a alocação do vetor
@@ -195,8 +188,6 @@ void substitui_membro_comp(FILE* archive, struct directory* dir, const char* nam
         compressed_size = original_size;
         memcpy(output, input, original_size);  // Copia o conteúdo original para output sem compressão
     }
-    printf("ANTES: diskSize antigo no archive = %ld, novo compressed_size = %d\n",
-        dir->members[idx].diskSize, compressed_size);
     
     long deslocamento = compressed_size - dir->members[idx].diskSize;
 
@@ -279,6 +270,8 @@ void append_diretorio_comp(struct directory* dir, const char* filename) {
     int use_compressed = compressed_size < original_size;
 
     struct infoMember novo;
+
+    // Garante que se filename for maior q o nome não estoura a memória
     snprintf(novo.name, sizeof(novo.name), "%s", filename);
     novo.originalSize = original_size;
     novo.diskSize = use_compressed ? compressed_size : original_size;
@@ -287,13 +280,6 @@ void append_diretorio_comp(struct directory* dir, const char* filename) {
     novo.offset = -1; // será definido depois por atualiza_offset()
 
     dir->members[dir->N] = novo;
-
-    printf("==== Membro %ld comprimido adicionado ====\n", dir->N);
-    printf("Nome: %s\n", dir->members[dir->N].name);
-    printf("Tamanho original: %ld bytes\n", dir->members[dir->N].originalSize);
-    printf("Tamanho em disco: %ld bytes\n", dir->members[dir->N].diskSize);
-    printf("Posição no diretório: %d\n", dir->members[dir->N].pos);
-    printf("Última modificação: %s", ctime(&dir->members[dir->N].modTime));
 
     free(work);
     free(input);

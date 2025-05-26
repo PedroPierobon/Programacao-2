@@ -52,7 +52,6 @@ int main(int argc, char *argv[]){
             break;
 
         case 'i':
-            printf("foi i\n");
             for (int i = 3; i < argc; i++) {
                 int idx = encontra_membro(dir, argv[i]);
                 if (idx != -1) {
@@ -80,7 +79,6 @@ int main(int argc, char *argv[]){
             break;
 
         case 'm':
-            printf("foi m\n");
             if(argc < 4){
                 perror("Para inserção no ínicio passar NULL como target");
             }else if(argc == 4){
@@ -91,7 +89,6 @@ int main(int argc, char *argv[]){
             break;
 
         case 'x':
-            printf("foi x\n");
             if (argc == 3){
                 extract(archive, dir, -1, NULL);
             }else{
@@ -114,7 +111,6 @@ int main(int argc, char *argv[]){
             break;
 
         case 'c':
-            printf("foi c\n");
             printar(dir);
             break;
 

@@ -133,8 +133,7 @@ void extrai_membro(FILE* archive, struct infoMember* membro) {
 
     fwrite(output, 1, membro->originalSize, out);
     fclose(out);
-
-    printf("Extraído: %s\n", membro->name);
+    
     free(buffer);
     free(output);
 }

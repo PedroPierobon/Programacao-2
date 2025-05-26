@@ -144,8 +144,7 @@ CMD_TEST[7] = [
 	                                           
 	f'rm {FILES[0]} {FILES[1]} {FILES[2]} {FILES[3]} {FILES[4]}',   										  						# rm chatgpt-5k.txt chatgpt-40k.txt img.jpeg radio-100k.bin radio.cfg                       
                                                
-	[f'{EXEC_LINE} -m {FILES[2]} arc1.vc NULL', f'{EXEC_LINE} -m {FILES[2]} arc1.vc null', f'{EXEC_LINE} -m {FILES[2]} arc1.vc',
-	f'{EXEC_LINE} -m arc1.vc {FILES[2]} NULL', f'{EXEC_LINE} -m arc1.vc {FILES[2]} null', f'{EXEC_LINE} -m arc1.vc {FILES[2]}'],    # vinac -m img.jpeg arc1.vc NULL
+	f'{EXEC_LINE} -m arc1.vc {FILES[2]}',                                                                                           # vinac -m arc1.vc img.jpeg
                                                
 	f'{EXEC_LINE} -x arc1.vc {FILES[2]} {FILES[3]}',      													  						# vinac -m img.jpeg arc1.vc  radio-100k.bin
                                                
@@ -168,7 +167,7 @@ CMD_TEST[8] = [
 	                                           
 	f'rm {FILES[0]} {FILES[1]} {FILES[2]} {FILES[3]} {FILES[4]}',         									 # rm chatgpt-5k.txt chatgpt-40k.txt img.jpeg radio-100k.bin radio.cfg                 
                                                
-	[f'{EXEC_LINE} -m {FILES[1]} arc1.vc {FILES[0]}', f'{EXEC_LINE} -m arc1.vc {FILES[1]} {FILES[0]}'],      # vinac -m chatgpt-40k.txt arc1.vc chatgpt-5k.txt
+	f'{EXEC_LINE} -m arc1.vc {FILES[1]} {FILES[0]}',                                                         # vinac -m arc1.vc chatgpt-40k.txt chatgpt-5k.txt
                                                
 	f'{EXEC_LINE} -x arc1.vc {FILES[1]} {FILES[0]}',      													 # vinac -m chatgpt-40k.txt arc1.vc chatgpt-5k.txt
                                                
@@ -193,9 +192,9 @@ CMD_TEST[9] = [
     
     f'cp arc1.vc arc1_cp.vc',										                                         # cp arc1.vc arc1_cp.vc  
 	
-	[f'{EXEC_LINE} -m {FILES[1]} arc1.vc {FILES[0]}', f'{EXEC_LINE} -m arc1.vc {FILES[1]} {FILES[0]}'],      # vinac -m chatgpt-40k.txt arc1.vc chatgpt-5k.txt
+	f'{EXEC_LINE} -m arc1.vc {FILES[1]} {FILES[0]}',                                                         # vinac -m chatgpt-40k.txt arc1.vc chatgpt-5k.txt
                                                
-	[f'{EXEC_LINE} -m {FILES[2]} arc1.vc {FILES[1]}', f'{EXEC_LINE} -m arc1.vc {FILES[2]} {FILES[1]}'],		 # vinac -m img.jpeg chatgpt-40k.txt
+	f'{EXEC_LINE} -m arc1.vc {FILES[2]} {FILES[1]}',                                                 		 # vinac -m img.jpeg chatgpt-40k.txt
 
 	f'{EXEC_LINE} -x arc1.vc {FILES[1]} {FILES[2]}',      													 # vinac -x chatgpt-40k.txt arc1.vc img.jpeg
                                                
@@ -214,7 +213,7 @@ CMD_TEST[9] = [
 
 
 REPLACE_FLAGS = True
-STEP_EXECUTION = True
+STEP_EXECUTION = False
 
 for test in [1,2,3,4,5,6,7,8,9]:
 	print("========================== EXECUTING TEST #" + str(test) + " ==========================")
@@ -228,7 +227,7 @@ for test in [1,2,3,4,5,6,7,8,9]:
 			if command.startswith("diff"):
 				diff_file = open("diff_file.txt", "wb+")
 				try:
-					result = subprocess.run(command.split(), timeout=50, stdout = diff_file)
+					result = subprocess.run(command.split(), timeout=10, stdout = diff_file)
 				except:
 					continue
 				if (result.returncode != 0):
@@ -236,24 +235,24 @@ for test in [1,2,3,4,5,6,7,8,9]:
 				else:
 					print("SUCESSO -", result)
 				try:
-					result = subprocess.run(["rm", "diff_file.txt"], timeout=50, stdout = diff_file)
+					result = subprocess.run(["rm", "diff_file.txt"], timeout=10, stdout = diff_file)
 				except:
 					continue
 			elif command.startswith("cmp"):
 				cmp_file = open("cmp_file.txt", "wb+")
 				try:
-					result = subprocess.run(command.split(), timeout=50, stdout = cmp_file)
+					result = subprocess.run(command.split(), timeout=10, stdout = cmp_file)
 				except:
 					continue
 				cmp_file.close()
 			elif command.startswith("wc"):
 				try:
-					result = subprocess.run(command.split(), timeout=50)
+					result = subprocess.run(command.split(), timeout=10)
 				except:
 					continue
 			else:
 				try:
-					result = subprocess.run(command.split(), timeout=50, stdout = subprocess.DEVNULL)
+					result = subprocess.run(command.split(), timeout=10, stdout = subprocess.DEVNULL)
 				except:
 					continue
 				if (result.returncode != 0):
@@ -264,7 +263,7 @@ for test in [1,2,3,4,5,6,7,8,9]:
 			print("---")
 			for subcommand in command:
 				try:
-					result = subprocess.run(subcommand.split(), timeout=50, stdout = subprocess.DEVNULL)
+					result = subprocess.run(subcommand.split(), timeout=10, stdout = subprocess.DEVNULL)
 				except:
 					continue
 				if (result.returncode != 0):
