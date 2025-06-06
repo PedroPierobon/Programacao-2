@@ -1,15 +1,52 @@
-#include <allegro5/allegro5.h>																																												//Biblioteca base do Allegro
-#include <allegro5/allegro_font.h>
+#include <allegro5/allegro.h>
 
-int main(void) {
-    al_init();																																																//Faz a preparação de requisitos da biblioteca Allegro
-	al_init_primitives_addon();																																												//Faz a inicialização dos addons das imagens básicas
-	
-	al_install_keyboard();																																													//Habilita a entrada via teclado (eventos de teclado), no programa
+#include "core.h"
+#include "game_states.h"
+//#include "menu.h"
+//#include "joystick.h"
 
-	ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);																																						//Cria o relógio do jogo; isso indica quantas atualizações serão realizadas por segundo (30, neste caso)
-	ALLEGRO_EVENT_QUEUE* queue = al_create_event_queue();																																					//Cria a fila de eventos; todos os eventos (programação orientada a eventos) 
-	ALLEGRO_FONT* font = al_create_builtin_font();																																							//Carrega uma fonte padrão para escrever na tela (é bitmap, mas também suporta adicionar fontes ttf)
-	ALLEGRO_DISPLAY* disp = al_create_display(X_SCREEN, Y_SCREEN);
-    
+int main(){
+  if(!core_init()) return -1;
+
+  GameState current_state = MENU;
+  bool running = true;
+
+  al_start_timer(core_get_timer());
+
+  while(running) {
+    ALLEGRO_EVENT event;
+    al_wait_for_event(core_get_event_queue(), &event);
+
+    switch (current_state) {
+      case MENU:
+        if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE){
+          current_state = EXIT;
+        }
+
+        break;
+      case JOYSTICK:
+        //adicionar lógica do joystick
+        break;
+      case PLAYING:
+        //adicionar lógica do jogo
+        break;
+      case GAME_OVER:
+        //adicionar lógica de game over
+        break;  
+      case EXIT:
+        running = false;
+        break;
+    }
+    if (al_is_event_queue_empty(core_get_event_queue())) {
+      al_clear_to_color(al_map_rgb(0, 0, 0));
+
+      if (current_state == MENU) {
+           al_draw_text(core_get_font(), al_map_rgb(255, 255, 255), 400, 300, ALLEGRO_ALIGN_CENTER, "MENU SCREEN - PRESS X TO CLOSE");
+      }
+      
+      al_flip_display();
+    }
+  }
+  core_shutdown();
+  return 0;
 }
