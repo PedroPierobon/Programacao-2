@@ -27,13 +27,20 @@ bool core_init() {
         return false;
     }
 
-    const GameSettings* settings = settings_get();
-    display = al_create_display(settings->screen_width, settings->screen_height);
+    al_set_new_display_flags(ALLEGRO_FULLSCREEN_WINDOW);
+
+    ALLEGRO_DISPLAY_MODE disp_data;
+
+    al_get_display_mode(0, &disp_data);
+
+    display = al_create_display(disp_data.width, disp_data.height);
     if (!display) {
         fprintf(stderr, "Falhou em criar a janela.\n");
         al_destroy_timer(timer);
         return false;
     }
+
+    settings_set_res(disp_data.width, disp_data.height);
 
     queue = al_create_event_queue();
     if (!queue) {

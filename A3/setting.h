@@ -8,6 +8,8 @@ typedef struct {
 
 void settings_init();
 
+void settings_set_res(int width, int height);
+
 // Const para não poder ser alterada
 const GameSettings* settings_get();
 

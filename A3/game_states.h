@@ -3,7 +3,7 @@
 
 typedef enum {
   MENU,
-  JOYSTICK,
+  CONTROLS,
   PLAYING,
   GAME_OVER,
   EXIT,
