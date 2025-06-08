@@ -8,7 +8,8 @@
 #include "menu.h"
 #include "playing.h"
 #include "assets.h"
-//#include "joystick.h"
+#include "controls.h"
+
 
 int main(){
   settings_init();
@@ -36,8 +37,7 @@ int main(){
         break;
 
       case CONTROLS:
-        printf("State changed to CONTROLS. Exiting for now.\n");
-        current_state = EXIT;
+        current_state = controls_run();
         break;
 
       case EXIT:

@@ -1,5 +1,6 @@
 #include "player.h"
 #include <stdlib.h>
+#include "controls.h"
 
 static bool key_up = false;
 static bool key_down = false;
@@ -26,18 +27,28 @@ void player_destroy(Player* p) {
 
 void player_handle_input(Player* p, ALLEGRO_EVENT* event) {
     if (event->type == ALLEGRO_EVENT_KEY_DOWN) {
-        switch (event->keyboard.keycode) {
-            case ALLEGRO_KEY_UP: key_up = true; break;
-            case ALLEGRO_KEY_DOWN: key_down = true; break;
-            case ALLEGRO_KEY_LEFT: key_left = true; break;
-            case ALLEGRO_KEY_RIGHT: key_right = true; break;
+        int keycode = event->keyboard.keycode;
+
+        if (keycode == game_controls.moveUp) {
+            key_up = true;
+        } else if (keycode == game_controls.moveDown) {
+            key_down = true;
+        } else if (keycode == game_controls.moveLeft) {
+            key_left = true;
+        } else if (keycode == game_controls.moveRight) {
+            key_right = true;
         }
     } else if (event->type == ALLEGRO_EVENT_KEY_UP) {
-        switch (event->keyboard.keycode) {
-            case ALLEGRO_KEY_UP: key_up = false; break;
-            case ALLEGRO_KEY_DOWN: key_down = false; break;
-            case ALLEGRO_KEY_LEFT: key_left = false; break;
-            case ALLEGRO_KEY_RIGHT: key_right = false; break;
+        int keycode = event->keyboard.keycode;
+
+        if (keycode == game_controls.moveUp) {
+            key_up = false;
+        } else if (keycode == game_controls.moveDown) {
+            key_down = false;
+        } else if (keycode == game_controls.moveLeft) {
+            key_left = false;
+        } else if (keycode == game_controls.moveRight) {
+            key_right = false;
         }
     }
 }

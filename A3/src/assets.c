@@ -6,13 +6,13 @@ static ALLEGRO_BITMAP* background = NULL;
 static ALLEGRO_FONT* font_menu = NULL;
 
 bool assets_init() {
-    background = al_load_bitmap("assets/backgroundMenu.png");
+    background = al_load_bitmap("assets/images/backgroundMenu.png");
     if (!background) {
         fprintf(stderr, "Falhou em carregar backgroundMenu.png\n");
         return false;
     }
 
-    font_menu = al_load_font("assets/PressStart2P-Regular.ttf", 32, 0);
+    font_menu = al_load_font("assets/fonts/PressStart2P-Regular.ttf", 32, 0);
     if(!font_menu){
         fprintf(stderr, "Falha em carregar fonte\n");
         if(background) al_destroy_bitmap(background);

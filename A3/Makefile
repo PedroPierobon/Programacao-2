@@ -1,36 +1,84 @@
-# Makefile Corrigido e Verificado
+# Makefile para Jogo em C com Allegro 5
+# Este Makefile é projetado para a seguinte estrutura de pastas:
+# .
+# ├── Makefile
+# ├── bin/      (Onde o executável final será colocado)
+# ├── build/    (Onde os arquivos objeto .o intermediários serão colocados)
+# ├── include/  (Onde seus arquivos .h ficam)
+# └── src/      (Onde seus arquivos .c ficam)
 
-# Nome do seu programa executável final
-TARGET = game
+# --- Variáveis de Configuração ---
 
-# O compilador que vamos usar
+# Nome do compilador C
 CC = gcc
 
-# Arquivos de código-fonte (.c).
-SRCS = main.c core.c setting.c menu.c assets.c player.c playing.c
+# Nome do executável final
+TARGET = jogo
 
-# Gera automaticamente os nomes dos arquivos de objeto (.o) a partir dos .c
-OBJS = $(SRCS:.c=.o)
+# Diretórios do projeto
+SRC_DIR = src
+INCLUDE_DIR = include
+BUILD_DIR = build
+BIN_DIR = bin
 
-# Flags para o compilador. pkg-config encontra as flags da Allegro para nós.
-CFLAGS = $(pkg-config --cflags allegro-5 allegro_font-5 allegro_primitives-5 allegro_image-5 allegro_main-5)
+# O caminho completo para o executável final
+EXEC = $(BIN_DIR)/$(TARGET)
 
-# Bibliotecas para linkar no final. pkg-config também as encontra.
-LIBS = $(pkg-config --libs allegro-5 allegro_font-5 allegro_primitives-5 allegro_image-5 allegro_main-5)
+# Encontra automaticamente todos os arquivos fonte .c na pasta src
+# A função wildcard cria uma lista de todos os arquivos que correspondem ao padrão
+SOURCES = $(wildcard $(SRC_DIR)/*.c)
 
-# --- REGRAS DO MAKEFILE ---
+# Gera os nomes dos arquivos objeto (.o) correspondentes, trocando o diretório de 'src' para 'build'
+# Ex: src/main.c se torna build/main.o
+OBJECTS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SOURCES))
 
-# A regra padrão: chamada quando você digita apenas "make"
-all: $(TARGET)
+# Flags de linkagem (bibliotecas). Usa pkg-config para pegar as flags do Allegro automaticamente.
+# Isso torna o Makefile mais portável entre sistemas.
+LDFLAGS = $(shell pkg-config --libs allegro-5 allegro_main-5 allegro_font-5 allegro_primitives-5 allegro_image-5 allegro_ttf-5)
 
-# Regra para criar o executável final (TARGET)
-$(TARGET): $(OBJS)
-	$(CC) -o $(TARGET) $(OBJS) $(LIBS)
+# Flags de compilação
+# -Wall: Ativa todos os avisos (warnings), uma boa prática.
+# -g:    Inclui símbolos de depuração (essencial para usar um debugger como o GDB).
+# -I...: Diz ao compilador para procurar por arquivos de cabeçalho (.h) na pasta 'include'.
+CFLAGS = -Wall -g -I$(INCLUDE_DIR)
 
-# Regra genérica para criar um arquivo .o a partir de um .c
-%.o: %.c
-	$(CC) -c $< -o $@ $(CFLAGS)
+# Comando para remover arquivos/diretórios
+RM = rm -f
 
-# Regra para limpar os arquivos gerados pela compilação
+
+# --- Regras do Makefile ---
+
+# A regra 'all' é a regra padrão, executada quando você digita apenas 'make'.
+# Ela depende do executável final.
+.PHONY: all
+all: $(EXEC)
+
+# Regra para linkar os arquivos objeto e criar o executável final.
+# Depende de todos os arquivos objeto (.o).
+# O comando @mkdir cria os diretórios 'bin' e 'build' se eles não existirem.
+# O '@' no início de um comando impede que ele seja impresso na tela.
+$(EXEC): $(OBJECTS)
+	@mkdir -p $(BIN_DIR)
+	$(CC) $(OBJECTS) -o $(EXEC) $(LDFLAGS)
+	@echo "Compilação concluída! Executável criado em: $(EXEC)"
+
+# Regra de padrão para compilar arquivos .c em arquivos .o
+# Isto diz ao make como transformar um arquivo 'src/qualquercoisa.c' em 'build/qualquercoisa.o'.
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+	@echo "Compilado $< -> $@"
+
+# Regra 'clean' para limpar os arquivos gerados.
+# Útil para forçar uma recompilação completa do zero.
+.PHONY: clean
 clean:
-	rm -f $(OBJS) $(TARGET)
+	$(RM) -r $(BUILD_DIR) $(BIN_DIR)
+	@echo "Arquivos de compilação e executável removidos."
+
+# Regra 'run' para compilar e executar o jogo com um único comando.
+# Depende da regra 'all' para garantir que tudo esteja compilado antes de rodar.
+.PHONY: run
+run: all
+	@echo "Iniciando o jogo..."
+	./$(EXEC)
