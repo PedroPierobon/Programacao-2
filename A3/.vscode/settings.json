@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "*.py": "python",
-        "core.h": "c"
+        "core.h": "c",
+        "game_states.h": "c",
+        "assets.h": "c"
     }
 }

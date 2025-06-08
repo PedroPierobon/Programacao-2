@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_image.h>
+#include <allegro5/allegro_ttf.h>
 
 #include "core.h"
 #include "setting.h"
@@ -51,18 +53,17 @@ bool core_init() {
     }
 
     al_init_font_addon();
-    font = al_create_builtin_font();
-    if (!font) {
-        fprintf(stderr, "Falhou em criar a fonte.\n");
+    al_init_ttf_addon();
+
+    if (!al_init_image_addon()) {
+        fprintf(stderr, "Falhou em inicializar o addon de imagens.\n");
         al_destroy_event_queue(queue);
         al_destroy_display(display);
         al_destroy_timer(timer);
-        return false;
     }
 
     if(!al_init_primitives_addon()) {
         fprintf(stderr, "Falhou em inicializar o addon de primitivas.\n");
-        al_destroy_font(font);
         al_destroy_event_queue(queue);
         al_destroy_display(display);
         al_destroy_timer(timer);

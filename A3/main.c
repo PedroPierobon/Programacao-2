@@ -1,4 +1,4 @@
-// Compilar com: gcc main.c core.c setting.c menu.c playing.c player.c -o game $(pkg-config --cflags --libs allegro-5 allegro_font-5 allegro_primitives-5 allegro_main-5)
+// Compilar com: gcc main.c core.c setting.c menu.c assets.c player.c playing.c -o game $(pkg-config --cflags --libs allegro-5 allegro_font-5 allegro_primitives-5 allegro_image-5 allegro_ttf-5 allegro_main-5)
 #include <allegro5/allegro.h>
 #include <stdio.h>
 
@@ -7,13 +7,16 @@
 #include "game_states.h"
 #include "menu.h"
 #include "playing.h"
+#include "assets.h"
 //#include "joystick.h"
 
 int main(){
   settings_init();
-
   if(!core_init()) return -1;
-
+  if(!assets_init()) {
+    core_shutdown();
+    return -1;
+  }
   GameState current_state = MENU;
   bool running = true;
 
@@ -47,6 +50,7 @@ int main(){
         break;
     }
   }
+  assets_shutdown();
   core_shutdown();
   return 0;
 }
