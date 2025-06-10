@@ -71,7 +71,7 @@ GameState controls_run() {
             for(int i = 0; i < num_actions; i++) {
                 ALLEGRO_COLOR color = (i == selected_action) ? al_map_rgb(255, 255, 0) : al_map_rgb(255, 255, 255);
 
-                al_draw_text(font, color, screen_w / 2 - 150, (screen_h / 2.5) + i * 60, ALLEGRO_ALIGN_LEFT, actions_names[i]);
+                al_draw_text(font, color, screen_w / 2 - 400, (screen_h / 2.5) + i * 60, ALLEGRO_ALIGN_LEFT, actions_names[i]);
                 
                 bool should_draw_key = true;
                 if (is_remapping && i == selected_action) {
@@ -83,7 +83,7 @@ GameState controls_run() {
 
                 if (should_draw_key ){
                     const char* key_name = al_keycode_to_name(control_key[i]);
-                    al_draw_text(font, color, screen_w / 2 + 50, (screen_h / 2.5) + i * 60, ALLEGRO_ALIGN_LEFT, key_name);
+                    al_draw_text(font, color, screen_w / 2 + 300, (screen_h / 2.5) + i * 60, ALLEGRO_ALIGN_LEFT, key_name);
                 } else {
                     // al_draw_text(font, color, screen_w / 2 + 50, (screen_h / 2.5) + i * 60, ALLEGRO_ALIGN_LEFT, "...");
                 }

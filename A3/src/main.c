@@ -24,8 +24,6 @@ int main(){
   al_start_timer(core_get_timer());
 
   while(running) {
-    ALLEGRO_EVENT event;
-    al_wait_for_event(core_get_event_queue(), &event);
 
     switch (current_state) {
       case MENU:

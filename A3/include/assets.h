@@ -10,6 +10,7 @@ bool assets_init();
 void assets_shutdown();
 
 ALLEGRO_BITMAP* assets_get_background();
+ALLEGRO_BITMAP* assets_get_1level();
 ALLEGRO_FONT* assets_get_font_menu();
 
 #endif
