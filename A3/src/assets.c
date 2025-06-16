@@ -3,6 +3,8 @@
 #include <stdio.h>
 
 static ALLEGRO_BITMAP* background = NULL;
+static ALLEGRO_BITMAP* goku = NULL;
+static ALLEGRO_BITMAP* kiblast = NULL;
 static ALLEGRO_BITMAP* level1 = NULL;
 static ALLEGRO_FONT* font_menu = NULL;
 
@@ -16,15 +18,24 @@ bool assets_init() {
     level1 = al_load_bitmap("assets/images/BGFirst.jpg");
     if (!level1) {
         fprintf(stderr, "alhou em carregar BGFirst.jpg\n");
-        if(background) al_destroy_bitmap(background);
+        return false;
+    }
+
+    goku = al_load_bitmap("assets/images/GokuSpriteSheet.png");
+    if (!goku) {
+        fprintf(stderr, "Falhou em carregar GokuSpriteSheet.png");
+        return false;
+    }
+
+    kiblast = al_load_bitmap("assets/images/KiblastSprite.png");
+    if (!kiblast) {
+        fprintf(stderr, "Falhou em carregar KiblastSprite.png");
         return false;
     }
 
     font_menu = al_load_font("assets/fonts/PressStart2P-Regular.ttf", 32, 0);
     if(!font_menu){
         fprintf(stderr, "Falha em carregar fonte\n");
-        if(background) al_destroy_bitmap(background);
-        if(level1) al_destroy_bitmap(level1);
         return false;
     }
 
@@ -33,12 +44,22 @@ bool assets_init() {
 
 void assets_shutdown() {
     if (background) al_destroy_bitmap(background);
-    if(level1) al_destroy_bitmap(level1);
+    if (goku) al_destroy_bitmap(goku);
+    if (kiblast) al_destroy_bitmap(kiblast);
+    if (level1) al_destroy_bitmap(level1);
     if (font_menu) al_destroy_font(font_menu);
 }
 
 ALLEGRO_BITMAP* assets_get_background() {
     return background;
+}
+
+ALLEGRO_BITMAP* assets_get_player_spritesheet() {
+    return goku;
+}
+
+ALLEGRO_BITMAP* assets_get_kiblast() {
+    return kiblast;
 }
 
 ALLEGRO_FONT* assets_get_font_menu(){

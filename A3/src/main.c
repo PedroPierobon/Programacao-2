@@ -15,6 +15,7 @@ int main(){
   settings_init();
   if(!core_init()) return -1;
   if(!assets_init()) {
+    assets_shutdown();
     core_shutdown();
     return -1;
   }

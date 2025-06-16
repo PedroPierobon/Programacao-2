@@ -2,6 +2,7 @@
 #include "core.h"
 #include "player.h"
 #include "assets.h"
+#include "bullet.h"
 
 GameState playing_run() {
     ALLEGRO_EVENT_QUEUE* queue = core_get_event_queue();
@@ -22,9 +23,11 @@ GameState playing_run() {
     float scaled_height = screen_h;
     float scaled_width = ((float)bg_w / bg_h) * scaled_height;
 
-    Player* player1 = player_create();
+    Player* player1 = player_create(screen_h);
+    bullets_init();
 
     while (running_state) {
+
         ALLEGRO_EVENT event;
         al_wait_for_event(queue, &event);
         
@@ -41,6 +44,7 @@ GameState playing_run() {
         }
         if (event.type == ALLEGRO_EVENT_TIMER) {
             player_update(player1);
+            bullets_update_all(screen_w);
             if(player1->x > screen_w / 2) background_x -= 10;
             redraw = true;
         }
@@ -60,6 +64,8 @@ GameState playing_run() {
             //al_draw_bitmap(bg_img, 0, 0, 0);
 
             player_draw(player1);
+                
+            bullets_draw_all();
 
             al_flip_display();
         }
