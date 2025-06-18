@@ -8,6 +8,7 @@ typedef enum {
     IDLE,
     WALKING,
     JUMPING,
+    LOOKING_UP,
     SQUATTING,
     SHOOTING
 } PlayerState;

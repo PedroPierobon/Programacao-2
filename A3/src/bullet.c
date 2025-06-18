@@ -6,14 +6,22 @@
 
 static Bullet bullet_pool[MAX_BULLETS];
 
-void update_single_bullet(Bullet* b, float screen_w) {
+void update_single_bullet(Bullet* b, float camera_x, float screen_w) {
     if(!b->active) return;
-    b->x += BULLET_SPEED * b->direction;
-    if(b->x >= screen_w || b->x < 0){
+    switch (b->direction) {
+        case DIR_RIGHT:
+            b->x += BULLET_SPEED;
+            break;
+        case DIR_LEFT:
+            b->x -= BULLET_SPEED;
+            break;
+        case DIR_UP:
+            b->y -= BULLET_SPEED;
+            break;
+    }
+    if(b->x > camera_x + screen_w || b->x < camera_x || b->y < 0){
         b->active = false;
     }
-    
-    // colisão
 }
 
 void draw_single_bullet(Bullet* b) {
@@ -29,21 +37,21 @@ void bullets_init() {
     }
 }
 
-void bullets_spawn(float x, float y, int direction) {
+void bullets_spawn(float x, float y, BulletDirection dir) {
     for (int i = 0; i < MAX_BULLETS; i++) {
         if(!bullet_pool[i].active) {
             bullet_pool[i].active = true;
             bullet_pool[i].x = x;
             bullet_pool[i].y = y;
-            bullet_pool[i].direction = direction;
+            bullet_pool[i].direction = dir;
             return;
         }
     }
 }
 
-void bullets_update_all(float screen_w) {
+void bullets_update_all(float camera_x, float screen_w) {
     for (int i = 0; i < MAX_BULLETS; i++) {
-        update_single_bullet(&bullet_pool[i], screen_w);
+        update_single_bullet(&bullet_pool[i], camera_x, screen_w);
     }
 }
 

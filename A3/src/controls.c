@@ -9,14 +9,15 @@ GameControls game_controls = {
     .moveDown = ALLEGRO_KEY_S,
     .moveLeft = ALLEGRO_KEY_A,
     .moveRight = ALLEGRO_KEY_D,
-    .action1 = ALLEGRO_KEY_SPACE,
-    .action2 = ALLEGRO_KEY_E
+    .jump = ALLEGRO_KEY_SPACE,
+    .action1 = ALLEGRO_KEY_J,
+    .action2 = ALLEGRO_KEY_K
 };
 
 static int selected_action = 0;
 
 GameState controls_run() {
-    const char* actions_names[] = {"Cima", "Baixo", "Esquerda", "Direita", "Ki Blast", "Especial"};
+    const char* actions_names[] = {"Cima", "Baixo", "Esquerda", "Direita", "Pular", "Ki Blast", "Especial"};
     const int num_actions = sizeof(actions_names) / sizeof(actions_names[0]);
 
     bool is_remapping = false;
@@ -84,8 +85,6 @@ GameState controls_run() {
                 if (should_draw_key ){
                     const char* key_name = al_keycode_to_name(control_key[i]);
                     al_draw_text(font, color, screen_w / 2 + 300, (screen_h / 2.5) + i * 60, ALLEGRO_ALIGN_LEFT, key_name);
-                } else {
-                    // al_draw_text(font, color, screen_w / 2 + 50, (screen_h / 2.5) + i * 60, ALLEGRO_ALIGN_LEFT, "...");
                 }
             }
             al_flip_display();

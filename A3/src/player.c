@@ -11,6 +11,7 @@ static bool key_up = false;
 static bool key_down = false;
 static bool key_left = false;
 static bool key_right = false;
+static bool key_jump = false;
 static bool key_shoot = false;
 
 Player* player_create(float screen_height) {
@@ -67,6 +68,8 @@ void player_handle_input(Player* p, ALLEGRO_EVENT* event) {
             key_left = true;
         } else if (keycode == game_controls.moveRight) {
             key_right = true;
+        } else if (keycode == game_controls.jump) {
+            key_jump = true;
         } else if (keycode == game_controls.action1) {
             key_shoot = true;
         }
@@ -81,6 +84,8 @@ void player_handle_input(Player* p, ALLEGRO_EVENT* event) {
             key_left = false;
         } else if (keycode == game_controls.moveRight) {
             key_right = false;
+        }   else if (keycode == game_controls.jump) {
+            key_jump = false;
         } else if (keycode == game_controls.action1) {
             key_shoot = false;
         }
@@ -100,6 +105,9 @@ void player_update(Player* p) {
         p->facing_right = true;
     }
     p->x += move_direction * p->speed;
+    if( p->x - (p->frame_width * p->scale / 2) < 0){
+        p->x = p->frame_width * p->scale / 2;
+    } 
     
     if (!p->is_on_ground) {
         p->state = key_shoot ? SHOOTING : JUMPING;
@@ -113,10 +121,13 @@ void player_update(Player* p) {
         }
     }
     else {
-        if (key_up) {
+        if (key_jump) {
             p->is_on_ground = false;
             p->current_vy = p->jump_initial_speed;
             p->state = JUMPING;
+        }
+        else if (key_up) {
+            p->state = LOOKING_UP;
         }
         else if (key_down) {
             p->state = SQUATTING;
@@ -160,8 +171,9 @@ void player_update(Player* p) {
                                 ? p->x + (p->frame_width * p->scale) - 10
                                 : p->x + 10;
                 float spawn_y = p->y + (p->frame_height * p->scale / 2.0f);
+                BulletDirection dir = p->facing_right ? DIR_RIGHT : DIR_LEFT;
 
-                bullets_spawn(spawn_x, spawn_y, p->facing_right ? 1 : -1);
+                bullets_spawn(spawn_x, spawn_y, dir);
             }
             break;
         case SQUATTING:
@@ -171,10 +183,20 @@ void player_update(Player* p) {
                                 ? p->x + (p->frame_width * p->scale) - 10
                                 : p->x + 10;
                 float spawn_y = p->y + (p->frame_height * p->scale / 2.0f) + 20;
+                BulletDirection dir = p->facing_right ? DIR_RIGHT : DIR_LEFT;
 
-                bullets_spawn(spawn_x, spawn_y, p->facing_right ? 1 : -1);
+                bullets_spawn(spawn_x, spawn_y, dir);
             } else {
                 p->current_frame = 0;
+            }
+            break;
+        case LOOKING_UP:
+            p->current_frame = 5;
+            if (key_shoot) {
+                float spawn_x = p->x + (p->frame_width * p->scale / 2.0f);
+                float spawn_y = p->y;
+                
+                bullets_spawn(spawn_x, spawn_y, DIR_UP);
             }
             break;
         }

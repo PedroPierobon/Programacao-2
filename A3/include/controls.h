@@ -11,6 +11,7 @@ typedef struct {
     int moveDown;
     int moveLeft;
     int moveRight;
+    int jump;
     int action1; // Atirar
     int action2; // Especial
 } GameControls;
