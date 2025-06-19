@@ -3,9 +3,8 @@
 #include "bullet.h"
 #include "player.h"
 
-#define MAX_ENEMIES 10
-#define ENEMY_SPEED 3.0f
-#define SHOOT_DELAY 2.0f
+#define ENEMY_SPEED 6.0f
+#define SHOOT_DELAY 1.0f
 
 static Enemy enemy_pool[MAX_ENEMIES];
 
@@ -25,34 +24,51 @@ void update_single_enemy(Enemy* e, Player* player, float camera_x, float screen_
             break;
         case ATTACKING:
             e->facing_right = (player->x > e->x);
-            e->shoot_frames += 1.0 / 30.0; // 1 frame
+            e->shoot_timer += 1.0 / 30.0; // 1 frame
 
             if (e->shoot_timer >= SHOOT_DELAY) {
-                e->shoot_frames = 0;
+                e->shoot_timer = 0;
 
                 BulletDirection dir = e->facing_right ? DIR_RIGHT : DIR_LEFT;
                 float spawn_x = e->facing_right ? e->x + e->frame_width : e->x - 40;
                 float spawn_y = e->y + (e->frame_height / 2.0f);
-                bullets_spawn(spawn_x, spawn_y, dir);
+                bullets_spawn(spawn_x, spawn_y, dir, ENEMY);
             }
             break;
         case INACTIVE:
             break;
     }
 
-    //if(e->state == MOVING){
-    //    e->current_frame = (e->current_frame + 1) % e->run_frames;
-    //} else if (e->state == ATTACKING) {
-    //    e->current_frame = (e->current_frame + 1) % e->shoot_frames;
-    //}
+    e->animation_timer += 1.0;
+    if (e->animation_timer >= (30 / e->animation_speed)) {
+        e->animation_timer = 0.0;
+        if (e->state == ATTACKING) {
+            e->current_frame = (e->current_frame + 1) % e->shoot_frames;
+        }
+    }
 }
 
 void draw_single_enemy(Enemy* e) {
     if (!e->active) return;
-    // Lógica de desenho similar à do jogador
-    // Por enquanto, vamos desenhar um retângulo simples
-    ALLEGRO_COLOR color = al_map_rgb(255, 0, 255); // Magenta para teste
-    al_draw_filled_rectangle(e->x, e->y, e->x + 500, e->y + 1000, color);
+
+    int animation_row = 0;
+    if (e->state == ATTACKING) animation_row = 1;
+
+    float sx = e->current_frame * e->frame_width;
+    float sy = animation_row * e->frame_height;
+
+    int flip_flag = e->facing_right ? 0: ALLEGRO_FLIP_HORIZONTAL;
+
+    al_draw_scaled_bitmap(
+        e->sprite_sheets,
+        sx, sy,
+        e->frame_width, e->frame_height,
+        e->x, e->y,
+        e->frame_width * e->scale,
+        e->frame_height * e->scale,
+        flip_flag
+    );
+
 }
 
 void enemies_init() {
@@ -70,9 +86,19 @@ void enemies_spawn(float x, float y, float dest_x) {
             e->y = y;
             e->destination_x = dest_x;
             e->state = MOVING;
-            // Configurar outros valores como sprites e contagem de frames aqui...
-            e->frame_width = 44; // Exemplo
-            e->frame_height = 44; // Exemplo
+            e->facing_right = false;
+
+            e->sprite_sheets = assets_get_enemy_spritesheet();
+            e->frame_width = 44; 
+            e->frame_height = 44; 
+            e->scale = 6.0f;
+
+            e->current_frame = 0;
+            e->animation_timer = 0.0f;
+            e->animation_speed = 8.0f;
+
+            e->run_frames = 1;
+            e->shoot_frames = 2;
             return;
         }
     }
@@ -88,4 +114,8 @@ void enemies_draw_all() {
     for (int i = 0; i < MAX_ENEMIES; i++) {
         draw_single_enemy(&enemy_pool[i]);
     }
+}
+
+Enemy* enemies_get_pool(){
+    return enemy_pool;
 }

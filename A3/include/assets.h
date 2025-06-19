@@ -11,6 +11,8 @@ void assets_shutdown();
 
 ALLEGRO_BITMAP* assets_get_background();
 ALLEGRO_BITMAP* assets_get_player_spritesheet();
+ALLEGRO_BITMAP* assets_get_enemy_spritesheet();
+ALLEGRO_BITMAP* assets_get_enemy_kiblast();
 ALLEGRO_BITMAP* assets_get_kiblast();
 ALLEGRO_BITMAP* assets_get_1level();
 ALLEGRO_FONT* assets_get_font_menu();

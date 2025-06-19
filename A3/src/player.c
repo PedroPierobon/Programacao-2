@@ -173,7 +173,7 @@ void player_update(Player* p) {
                 float spawn_y = p->y + (p->frame_height * p->scale / 2.0f);
                 BulletDirection dir = p->facing_right ? DIR_RIGHT : DIR_LEFT;
 
-                bullets_spawn(spawn_x, spawn_y, dir);
+                bullets_spawn(spawn_x, spawn_y, dir, PLAYER);
             }
             break;
         case SQUATTING:
@@ -185,7 +185,7 @@ void player_update(Player* p) {
                 float spawn_y = p->y + (p->frame_height * p->scale / 2.0f) + 20;
                 BulletDirection dir = p->facing_right ? DIR_RIGHT : DIR_LEFT;
 
-                bullets_spawn(spawn_x, spawn_y, dir);
+                bullets_spawn(spawn_x, spawn_y, dir, PLAYER);
             } else {
                 p->current_frame = 0;
             }
@@ -196,7 +196,7 @@ void player_update(Player* p) {
                 float spawn_x = p->x + (p->frame_width * p->scale / 2.0f);
                 float spawn_y = p->y;
                 
-                bullets_spawn(spawn_x, spawn_y, DIR_UP);
+                bullets_spawn(spawn_x, spawn_y, DIR_UP, PLAYER);
             }
             break;
         }

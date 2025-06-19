@@ -5,6 +5,57 @@
 #include "bullet.h"
 #include "enemy.h"
 
+bool check_collision(float x1, float y1, float w1, float h1
+                    ,float x2, float y2, float w2, float h2) {
+    if (x1 + w1 < x2 || // x1 ta na esquerda
+        x1 > x2 + w2 || // x1 na direita
+        y1 + h1 < y2 || // x1 em cima
+        y1 > y2 + h2){  // x1 embaixo
+            return false;
+    }
+    return true; // se não está em volta, então tem colisão
+}
+
+void collisions(Player* player) {
+    Bullet* bullet_pool = bullets_get_pool();
+    Enemy* enemy_pool = enemies_get_pool();
+
+    for (int i = 0; i < MAX_BULLETS; i++) {
+        if (!bullet_pool[i].active) continue;
+
+        if (bullet_pool[i].owner == PLAYER) {
+            for (int j = 0; j < MAX_ENEMIES; j++) {
+                if (!enemy_pool[j].active) continue;
+                
+                float bullet_w = al_get_bitmap_width(assets_get_kiblast());
+                float bullet_h = al_get_bitmap_height(assets_get_kiblast());
+                
+                float enemy_w = enemy_pool[j].frame_width * enemy_pool[j].scale;
+                float enemy_h = enemy_pool[j].frame_height * enemy_pool[j].scale;
+                
+                if (check_collision(bullet_pool[i].x, bullet_pool[i].y, bullet_w, bullet_h,
+                                    enemy_pool[j].x, enemy_pool[j].y, enemy_w, enemy_h)) {
+                    bullet_pool[i].active = false;
+                    enemy_pool[j].active = false;
+                    break;
+                }
+            }
+        }
+        else {
+            float player_w = player->frame_width * player->scale;
+            float player_h = player->frame_height * player->scale;
+            float bullet_w = al_get_bitmap_width(assets_get_enemy_kiblast());
+            float bullet_h = al_get_bitmap_height(assets_get_enemy_kiblast());
+
+            if (check_collision(bullet_pool[i].x, bullet_pool[i].y, bullet_w, bullet_h,
+                                player->x, player->y, player_w, player_h)) {
+                bullet_pool[i].active = false;
+                printf("JOGADOR ATINGIDO!\n");                        
+            }
+        }
+    }
+}
+
 GameState playing_run() {
     ALLEGRO_EVENT_QUEUE* queue = core_get_event_queue();
     ALLEGRO_BITMAP* bg_img = assets_get_1level();
@@ -61,7 +112,8 @@ GameState playing_run() {
             player_update(player1);
             bullets_update_all(camera_x, screen_w);
             enemies_update_all(player1, camera_x, screen_w);
-            
+            collisions(player1);
+
             if (player1->x > camera_x + dead_zone_right){
                 camera_x = player1->x - dead_zone_right;
             } else if (player1->x < camera_x + dead_zone_left) {

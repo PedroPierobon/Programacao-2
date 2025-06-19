@@ -1,10 +1,12 @@
 #include "bullet.h"
 #include "assets.h"
 
-#define MAX_BULLETS 20
 #define BULLET_SPEED 15.0f
 
 static Bullet bullet_pool[MAX_BULLETS];
+
+static ALLEGRO_BITMAP* player_kiblast_sprite = NULL;
+static ALLEGRO_BITMAP* enemy_kiblast_sprite = NULL;
 
 void update_single_bullet(Bullet* b, float camera_x, float screen_w) {
     if(!b->active) return;
@@ -26,24 +28,28 @@ void update_single_bullet(Bullet* b, float camera_x, float screen_w) {
 
 void draw_single_bullet(Bullet* b) {
     if (!b->active) return;
-    al_draw_bitmap(b->sprite, b->x, b->y, 0);
+    
+    ALLEGRO_BITMAP* sprite = (b->owner == PLAYER) ? player_kiblast_sprite : enemy_kiblast_sprite;
+    if (sprite) al_draw_bitmap(sprite, b->x, b->y, 0);
 }
 
 void bullets_init() {
-    ALLEGRO_BITMAP* bullet_sprite = assets_get_kiblast();
+    player_kiblast_sprite = assets_get_kiblast();
+    enemy_kiblast_sprite = assets_get_enemy_kiblast();
+
     for (int i = 0; i < MAX_BULLETS; i++) {
         bullet_pool[i].active = false;
-        bullet_pool[i].sprite = bullet_sprite;
     }
 }
 
-void bullets_spawn(float x, float y, BulletDirection dir) {
+void bullets_spawn(float x, float y, BulletDirection dir, BulletOwner owner) {
     for (int i = 0; i < MAX_BULLETS; i++) {
         if(!bullet_pool[i].active) {
             bullet_pool[i].active = true;
             bullet_pool[i].x = x;
             bullet_pool[i].y = y;
             bullet_pool[i].direction = dir;
+            bullet_pool[i].owner = owner;
             return;
         }
     }
@@ -59,4 +65,8 @@ void bullets_draw_all() {
     for (int i = 0; i < MAX_BULLETS; i++) {
         draw_single_bullet(&bullet_pool[i]);
     }
+}
+
+Bullet* bullets_get_pool() {
+    return bullet_pool;
 }
