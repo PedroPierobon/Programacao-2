@@ -39,6 +39,8 @@ typedef struct {
     float animation_timer;
     float animation_speed;
 
+    int health;
+    int max_health;
     bool facing_right;
 } Player;
 

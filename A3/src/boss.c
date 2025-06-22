@@ -27,6 +27,8 @@ void boss_spawn(float x, float y, float camera_x, float screen_w) {
     boss.frame_width = 38;
     boss.current_frame = 0;
     boss.scale = 6.0f;
+    boss.health = 200;
+    boss.max_health = 200;
 }
 
 void boss_update(float camera_x, float screen_w) {

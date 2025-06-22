@@ -28,6 +28,9 @@ typedef struct {
     BossState state;
     float destination_x;
     float shoot_timer;
+
+    int health;
+    int max_health;
 } Boss;
 
 void boss_init();

@@ -5,6 +5,7 @@
 #include "bullet.h"
 #include "enemy.h"
 #include "boss.h"
+#include "ui.h"
 #include <stdio.h>
 
 #define LEVEL_WIDTH 10618.27f
@@ -40,7 +41,10 @@ void collisions(Player* player) {
                 if (check_collision(bullet_pool[i].x, bullet_pool[i].y, bullet_w, bullet_h,
                                     enemy_pool[j].x, enemy_pool[j].y, enemy_w, enemy_h)) {
                     bullet_pool[i].active = false;
-                    enemy_pool[j].active = false;
+                    enemy_pool[j].health -= 10;
+                    if (enemy_pool[j].health <= 0) {
+                        enemy_pool[j].active = false;
+                    }
                     break;
                 }
             }
@@ -48,12 +52,19 @@ void collisions(Player* player) {
         else {
             float player_w = player->frame_width * player->scale;
             float player_h = player->frame_height * player->scale;
+            float player_y = player->y;
+            if (player->state == SQUATTING) {
+                player_h /= 2;
+                player_y += player_h;
+            }
+            
             float bullet_w = al_get_bitmap_width(assets_get_enemy_kiblast());
             float bullet_h = al_get_bitmap_height(assets_get_enemy_kiblast());
 
             if (check_collision(bullet_pool[i].x, bullet_pool[i].y, bullet_w, bullet_h,
-                                player->x, player->y, player_w, player_h)) {
+                                player->x, player_y, player_w, player_h)) {
                 bullet_pool[i].active = false;
+                player->health -= 10;
                 printf("JOGADOR ATINGIDO!\n");                        
             }
         }
@@ -179,6 +190,9 @@ GameState playing_run() {
                 
             al_identity_transform(&camera_transform);
             al_use_transform(&camera_transform);
+            
+            ui_draw(player1);
+            
             al_flip_display();
         }
     }

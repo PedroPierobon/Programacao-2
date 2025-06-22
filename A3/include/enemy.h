@@ -28,6 +28,9 @@ typedef struct {
     EnemyState state;
     float destination_x;
     float shoot_timer;
+
+    int health;
+    int max_health;
 } Enemy;
 
 void enemies_init();

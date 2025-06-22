@@ -3,7 +3,7 @@
 #include "bullet.h"
 #include "player.h"
 
-#define ENEMY_SPEED 6.0f
+#define ENEMY_SPEED 24.0f
 #define SHOOT_DELAY 1.0f
 
 static Enemy enemy_pool[MAX_ENEMIES];
@@ -25,6 +25,7 @@ void update_single_enemy(Enemy* e, Player* player, float camera_x, float screen_
         case ATTACKING:
             e->facing_right = (player->x > e->x);
 
+            e->shoot_timer += 1.0 / 30.0;
             if (e->shoot_timer >= SHOOT_DELAY) {
                 e->shoot_timer = 0;
 
@@ -98,6 +99,8 @@ void enemies_spawn(float x, float y, float dest_x) {
 
             e->run_frames = 1;
             e->shoot_frames = 2;
+            e->health = 50;
+            e->max_health = 50;
             return;
         }
     }

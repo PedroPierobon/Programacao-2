@@ -45,6 +45,8 @@ Player* player_create(float screen_height) {
         p->animation_timer = 0.0;
         p->animation_speed = 8.0;
 
+        p->health = 100;
+        p->max_health = 100;
         p->facing_right = true;
     }
     return p;
