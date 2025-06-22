@@ -92,7 +92,7 @@ void player_handle_input(Player* p, ALLEGRO_EVENT* event) {
     }
 }
 
-void player_update(Player* p) {
+void player_update(Player* p, bool arena_mode, float camera_x, float screen_w) {
     PlayerState old_state = p->state;
 
     float move_direction = 0.0f;
@@ -105,9 +105,18 @@ void player_update(Player* p) {
         p->facing_right = true;
     }
     p->x += move_direction * p->speed;
-    if( p->x - (p->frame_width * p->scale / 2) < 0){
-        p->x = p->frame_width * p->scale / 2;
-    } 
+    
+    if (arena_mode) {
+        float left_limit = camera_x + (screen_w * 0.05f);
+        float right_limit = camera_x + (screen_w * 0.95f) - (p->frame_width * p->scale);
+
+        if (p->x < left_limit) p->x = left_limit;
+        if (p->x > right_limit) p->x =right_limit;
+    } else {
+        if( p->x - (p->frame_width * p->scale / 2) < 0){
+            p->x = p->frame_width * p->scale / 2;
+        } 
+    }
     
     if (!p->is_on_ground) {
         p->state = key_shoot ? SHOOTING : JUMPING;

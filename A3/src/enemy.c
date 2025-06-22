@@ -24,7 +24,6 @@ void update_single_enemy(Enemy* e, Player* player, float camera_x, float screen_
             break;
         case ATTACKING:
             e->facing_right = (player->x > e->x);
-            e->shoot_timer += 1.0 / 30.0; // 1 frame
 
             if (e->shoot_timer >= SHOOT_DELAY) {
                 e->shoot_timer = 0;

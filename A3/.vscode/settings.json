@@ -4,5 +4,6 @@
         "core.h": "c",
         "game_states.h": "c",
         "assets.h": "c"
-    }
+    },
+    "C_Cpp.default.compilerPath": "/usr/bin/gcc"
 }

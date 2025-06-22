@@ -1,5 +1,5 @@
-#ifndef ENEMY_H
-#define ENEMY_H
+#ifndef BOSS_H
+#define BOSS_H
 
 #include <allegro5/allegro5.h>
 #include "player.h"
@@ -7,10 +7,10 @@
 #define MAX_ENEMIES 10
 
 typedef enum {
-    INACTIVE,
-    MOVING,
-    ATTACKING
-} EnemyState;
+    BOSS_INACTIVE,
+    BOSS_MOVING,
+    BOSS_ATTACKING
+} BossState;
 
 typedef struct {
     float x, y;
@@ -25,15 +25,15 @@ typedef struct {
     int run_frames, shoot_frames;
     float scale;
 
-    EnemyState state;
+    BossState state;
     float destination_x;
     float shoot_timer;
-} Enemy;
+} Boss;
 
-void enemies_init();
-void enemies_spawn(float x, float y, float dest_x);
-void enemies_update_all(Player* player, float camera_x, float screen_w);
-void enemies_draw_all();
-Enemy* enemies_get_pool();
+void boss_init();
+void boss_spawn(float x, float y, float camera_x, float screen_w);
+void boss_update(float camera_x, float screen_w);
+void boss_draw();
+bool boss_active();
 
 #endif

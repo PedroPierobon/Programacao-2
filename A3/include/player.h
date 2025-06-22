@@ -48,7 +48,7 @@ void player_destroy(Player* p);
 
 void player_handle_input(Player* p, ALLEGRO_EVENT* event);
 
-void player_update(Player* p);
+void player_update(Player* p, bool arena_mode, float camera_x, float screen_w);
 
 void player_draw(Player* p);
 

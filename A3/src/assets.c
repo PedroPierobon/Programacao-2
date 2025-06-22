@@ -5,7 +5,9 @@
 static ALLEGRO_BITMAP* background = NULL;
 static ALLEGRO_BITMAP* goku = NULL;
 static ALLEGRO_BITMAP* enemy = NULL;
+static ALLEGRO_BITMAP* boss = NULL;
 static ALLEGRO_BITMAP* enemy_kiblast = NULL;
+static ALLEGRO_BITMAP* enemy_kiblast_down = NULL;
 static ALLEGRO_BITMAP* kiblast = NULL;
 static ALLEGRO_BITMAP* level1 = NULL;
 static ALLEGRO_FONT* font_menu = NULL;
@@ -34,6 +36,12 @@ bool assets_init() {
         fprintf(stderr, "Falhou em carregar EnemySpriteSheet.png");
         return false;
     }
+    
+    boss = al_load_bitmap("assets/images/BossSpriteSheet.png");
+    if (!boss) {
+        fprintf(stderr, "Falhou em carregar BossSpriteSheet.png");
+        return false;
+    }
 
     kiblast = al_load_bitmap("assets/images/KiblastSprite.png");
     if (!kiblast) {
@@ -44,6 +52,12 @@ bool assets_init() {
     enemy_kiblast = al_load_bitmap("assets/images/EnemyKiblast.png");
     if (!enemy_kiblast) {
         fprintf(stderr, "Falhou em carregar EnemyKiblast.png");
+        return false;
+    }
+    
+    enemy_kiblast_down = al_load_bitmap("assets/images/EnemyKiblastDown.png");
+    if (!enemy_kiblast_down) {
+        fprintf(stderr, "Falhou em carregar EnemyKiblastDown.png");
         return false;
     }
 
@@ -60,7 +74,9 @@ void assets_shutdown() {
     if (background) al_destroy_bitmap(background);
     if (goku) al_destroy_bitmap(goku);
     if (enemy) al_destroy_bitmap(enemy);
+    if (boss) al_destroy_bitmap(boss);
     if (enemy_kiblast) al_destroy_bitmap(enemy_kiblast);
+    if (enemy_kiblast_down) al_destroy_bitmap(enemy_kiblast_down);
     if (kiblast) al_destroy_bitmap(kiblast);
     if (level1) al_destroy_bitmap(level1);
     if (font_menu) al_destroy_font(font_menu);
@@ -78,12 +94,20 @@ ALLEGRO_BITMAP* assets_get_enemy_spritesheet() {
     return enemy;
 }
 
+ALLEGRO_BITMAP* assets_get_boss_spritesheet() {
+    return boss;
+}
+
 ALLEGRO_BITMAP* assets_get_kiblast() {
     return kiblast;
 }
 
 ALLEGRO_BITMAP* assets_get_enemy_kiblast() {
     return enemy_kiblast;
+}
+
+ALLEGRO_BITMAP* assets_get_enemy_kiblast_down() {
+    return enemy_kiblast_down;
 }
 
 ALLEGRO_FONT* assets_get_font_menu(){
