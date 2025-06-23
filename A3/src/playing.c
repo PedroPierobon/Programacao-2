@@ -21,9 +21,10 @@ bool check_collision(float x1, float y1, float w1, float h1
     return true; // se não está em volta, então tem colisão
 }
 
-void collisions(Player* player) {
+void collisions(Player* player, int* enemies_to_defeat) {
     Bullet* bullet_pool = bullets_get_pool();
     Enemy* enemy_pool = enemies_get_pool();
+    Boss* boss = get_boss();
 
     for (int i = 0; i < MAX_BULLETS; i++) {
         if (!bullet_pool[i].active) continue;
@@ -44,8 +45,30 @@ void collisions(Player* player) {
                     enemy_pool[j].health -= 10;
                     if (enemy_pool[j].health <= 0) {
                         enemy_pool[j].active = false;
+                        (*enemies_to_defeat)--;
                     }
                     break;
+                }
+            }
+            if (boss->active) {
+                float bullet_w = al_get_bitmap_width(assets_get_kiblast());
+                float bullet_h = al_get_bitmap_height(assets_get_kiblast());
+
+                float boss_w = boss->frame_width * boss->scale;
+                float boss_h = boss->frame_height * boss->scale;
+
+                if (check_collision(bullet_pool[i].x, bullet_pool[i].y, bullet_w, bullet_h,
+                                    boss->x, boss->y, boss_w, boss_h))
+                {
+                    bullet_pool[i].active = false;
+                    boss->health -= 10;
+                    printf("BOSS ATINGIDO! Vida: %d\n", boss->health);
+
+                    if (boss->health <= 0) {
+                        boss->active = false;
+                        printf("BOSS DERROTADO!\n");
+                        // Aqui você poderia ativar um estado de vitória!
+                    }
                 }
             }
         }
@@ -65,7 +88,11 @@ void collisions(Player* player) {
                                 player->x, player_y, player_w, player_h)) {
                 bullet_pool[i].active = false;
                 player->health -= 10;
-                printf("JOGADOR ATINGIDO!\n");                        
+                printf("JOGADOR ATINGIDO!\n");
+                if (player->health <= 0) {
+                    player->active = false; // << Adicione uma flag 'active' ao Player
+                    printf("GAME OVER\n");
+                }                       
             }
         }
     }
@@ -94,6 +121,7 @@ GameState playing_run() {
 
     bool boss_arena_active = false;
     bool boss_spawned = false;
+    int enemies_to_defeat = 0;
     struct EnemiesSpawn {
         float trigger_x;
         bool triggered;
@@ -135,7 +163,22 @@ GameState playing_run() {
             bullets_update_all(camera_x, screen_w, screen_h);
             enemies_update_all(player1, camera_x, screen_w);
             boss_update(camera_x, screen_w);
-            collisions(player1);
+            collisions(player1, &enemies_to_defeat);
+
+            if (!player1->active) {
+                return GAME_OVER; // ...encerra o estado de 'playing' e retorna GAME_OVER
+            }
+
+            if (boss_spawned && !boss_is_active()) {
+                return YOU_WIN; // ...encerra e retorna YOU_WIN
+            }
+
+            if (camera_x >= LEVEL_WIDTH - screen_w && !boss_arena_active) {
+                float right_world_limit = LEVEL_WIDTH - (player1->frame_width * player1->scale);
+                if (player1->x > right_world_limit) {
+                    player1->x = right_world_limit;
+                }
+            }
 
             if (!boss_arena_active) {
                 if (player1->x > camera_x + dead_zone_right){
@@ -157,9 +200,10 @@ GameState playing_run() {
                     float x = triggers[i].trigger_x + screen_w + 30;
                     float des_x = x - 430;
                     enemies_spawn(x, player1->ground_level_y, des_x);
+                    enemies_to_defeat++;
                 }
             }
-            if (!boss_spawned && camera_x >= LEVEL_WIDTH - screen_w) {
+            if (!boss_spawned && camera_x >= LEVEL_WIDTH - screen_w && enemies_to_defeat == 0) {
                 boss_spawned = true;
                 boss_arena_active = true;
                 boss_spawn(camera_x + screen_w + 30, 50, camera_x, screen_w); 

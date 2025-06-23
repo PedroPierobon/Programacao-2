@@ -38,5 +38,6 @@ void boss_spawn(float x, float y, float camera_x, float screen_w);
 void boss_update(float camera_x, float screen_w);
 void boss_draw();
 bool boss_active();
+Boss* get_boss();
 
 #endif

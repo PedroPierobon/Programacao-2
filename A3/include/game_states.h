@@ -6,6 +6,7 @@ typedef enum {
   CONTROLS,
   PLAYING,
   GAME_OVER,
+  YOU_WIN,
   EXIT,
 } GameState;
 

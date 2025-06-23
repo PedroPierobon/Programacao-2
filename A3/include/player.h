@@ -20,6 +20,7 @@ typedef struct {
     float current_vy;
     float ground_level_y;
     bool is_on_ground;
+    bool active;
 
     PlayerState state;
 

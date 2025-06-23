@@ -9,6 +9,8 @@
 #include "playing.h"
 #include "assets.h"
 #include "controls.h"
+#include "game_over.h"
+#include "you_win.h"
 
 
 int main(){
@@ -37,6 +39,14 @@ int main(){
 
       case CONTROLS:
         current_state = controls_run();
+        break;
+      
+      case GAME_OVER:
+        current_state = game_over_run();
+        break;
+
+      case YOU_WIN:
+        current_state = you_win_run();
         break;
 
       case EXIT:

@@ -42,7 +42,10 @@ void draw_single_bullet(Bullet* b) {
     } else {
         sprite = enemy_kiblast_sprite;
     }
-    if (sprite) al_draw_bitmap(sprite, b->x, b->y, 0);
+    if (sprite){
+        int flipflag = (b->direction == DIR_RIGHT) ? ALLEGRO_FLIP_HORIZONTAL : 0;
+        al_draw_bitmap(sprite, b->x, b->y, flipflag);
+    }
 }
 
 void bullets_init() {

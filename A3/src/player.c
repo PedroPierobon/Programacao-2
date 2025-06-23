@@ -20,6 +20,7 @@ Player* player_create(float screen_height) {
         p->jump_initial_speed = -100.0f;
         p->current_vy = 0.0f;
         p->is_on_ground = true;
+        p->active = true;
         
         p->state = IDLE;
         

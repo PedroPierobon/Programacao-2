@@ -107,3 +107,7 @@ void boss_draw() {
 bool boss_is_active() {
     return boss.active;
 }
+
+Boss* get_boss() {
+    return &boss;
+}
